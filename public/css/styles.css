@@ -14,7 +14,7 @@ canvas { display: block; }
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('https://cdn.discordapp.com/attachments/1338927716971450409/1338929466579095686/image_4.png?ex=67acdebc&is=67ab8d3c&hm=076420b35f088fb0ced9dc5a74f5d037c2e4334887a446acfe18b254d05dfd96&') no-repeat center center;
+  background: url('/assets/images/TitleScreen.png') no-repeat center center;
   background-size: cover;
   display: flex;
   flex-direction: column;
@@ -202,7 +202,7 @@ canvas { display: block; }
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('https://cdn.discordapp.com/attachments/1338927716971450409/1338928144899506268/image_3.png?ex=67acdd81&is=67ab8c01&hm=548edaef6900b3cc1e08b87937f92bfe452759aa565bfde6ab0e5813ef48fdfc&') no-repeat center center;
+  background: url('assets/images/MainMenu.png') no-repeat center center;
   background-size: cover;
   display: none;
   flex-direction: column;
@@ -240,7 +240,7 @@ canvas { display: block; }
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('https://cdn.discordapp.com/attachments/1338927716971450409/1338928144899506268/image_3.png?ex=67acdd81&is=67ab8c01&hm=548edaef6900b3cc1e08b87937f92bfe452759aa565bfde6ab0e5813ef48fdfc&') no-repeat center center;
+  background: url('assets/images/options.png') no-repeat center center;
   background-size: cover;
   display: none;
   flex-direction: column;
