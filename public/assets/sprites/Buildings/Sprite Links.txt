@@ -1,8 +1,0 @@
-Barn:
-https://storage.googleapis.com/rosebud_assets_storage/9c5fd728-e11b-444c-9238-aee468cc781c.png
-
-House:
-https://storage.googleapis.com/rosebud_assets_storage/653d84b9-29c0-462c-ab42-3b494ace1941.png
-
-Tower:
-https://storage.googleapis.com/rosebud_assets_storage/048c58de-8137-4f79-9fc2-b772d5426157.png
