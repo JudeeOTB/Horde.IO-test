@@ -1,0 +1,45 @@
+Orcs:
+
+King:
+https://storage.googleapis.com/rosebud_assets_storage/7f8762ad-0a8a-4049-89f9-6f4304cccad6.png
+
+Level 1:
+https://storage.googleapis.com/rosebud_assets_storage/34f08453-78dc-4b96-b56d-68e5dd1a8845.png
+
+Level 2:
+https://storage.googleapis.com/rosebud_assets_storage/3f5ee027-07cc-47d1-855c-c7ea851d1823.png
+
+Level 3:
+https://storage.googleapis.com/rosebud_assets_storage/bd973a95-62af-43e4-82fe-4a8bb5fe63a4.png
+
+
+
+Menschen:
+
+King:
+https://storage.googleapis.com/rosebud_assets_storage/76bda470-edbd-4b01-ba5d-9b79bf65aeec.png
+
+Level 1:
+https://storage.googleapis.com/rosebud_assets_storage/ce7a91c4-2649-4466-b1c5-37b06815906b.png
+
+Level 2:
+https://storage.googleapis.com/rosebud_assets_storage/4c92972b-3e5e-41e1-b553-76f1e5b97a36.png
+
+Level 3:
+https://storage.googleapis.com/rosebud_assets_storage/3ab29cf1-5c0f-4ede-93fe-01637a398c20.png
+
+
+
+Elfen:
+
+King:
+https://storage.googleapis.com/rosebud_assets_storage/38d2e057-0bd3-41c8-8aeb-c4f572d62f29.png
+
+Level 1:
+https://storage.googleapis.com/rosebud_assets_storage/924b7ab7-fd0d-4127-ae16-7a0ca125d283.png
+
+Level 2:
+https://storage.googleapis.com/rosebud_assets_storage/7c352330-b7be-4fbe-8b04-fcf192b62c90.png
+
+Level 3:
+https://storage.googleapis.com/rosebud_assets_storage/13ee596d-17e9-4a4b-ac31-4328710057a2.png
