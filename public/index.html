@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RTS-Hybrid: Battle Royale – Medieval Style</title>
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css?family=Cinzel" rel="stylesheet">
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Socket.IO Client (für Multiplayer) -->
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+  <!-- TITELBILDSCHIRM -->
+  <div id="titleScreen">
+    <h1>RTS-Hybrid: Battle Royale</h1>
+    <p id="startText">press start to play</p>
+  </div>
+  
+  <!-- Neues Hauptmenü -->
+  <div id="mainMenu">
+    <h1>RTS-Hybrid: Battle Royale</h1>
+    <button id="btn-singleplayer">Singleplayer</button>
+    <button id="btn-multiplayer">Multiplayer</button>
+    <button id="btn-options">Optionen</button>
+  </div>
+  
+  <!-- Options-Menü (mit Lautstärkereglern) -->
+  <div id="optionsMenu">
+    <h1>Optionen</h1>
+    <div id="volumeControls">
+      <label for="musicVolumeSlider">Musik Lautstärke</label>
+      <input type="range" id="musicVolumeSlider" min="0" max="100" value="100">
+      <br>
+      <label for="sfxVolumeSlider">Soundeffekte Lautstärke</label>
+      <input type="range" id="sfxVolumeSlider" min="0" max="100" value="100">
+    </div>
+    <button id="btn-back">Zurück</button>
+  </div>
+  
+  <!-- Ursprüngliches Archetyp-Auswahlmenü -->
+  <div id="selectionMenu">
+    <h1>Wähle deinen Archetyp</h1>
+    <button data-faction="human">
+      <img src="https://storage.googleapis.com/rosebud_assets_storage/76bda470-edbd-4b01-ba5d-9b79bf65aeec.png" alt="Mensch">
+      Mensch
+    </button>
+    <button data-faction="elf">
+      <img src="https://storage.googleapis.com/rosebud_assets_storage/38d2e057-0bd3-41c8-8aeb-c4f572d62f29.png" alt="Elf">
+      Elf
+    </button>
+    <button data-faction="orc">
+      <img src="https://storage.googleapis.com/rosebud_assets_storage/7f8762ad-0a8a-4049-89f9-6f4304cccad6.png" alt="Ork">
+      Ork
+    </button>
+  </div>
+  
+  <!-- UI-Overlay (Steuerungshinweise) -->
+  <div id="gameUI">
+    <h2>Steuerung</h2>
+    <ul>
+      <li><strong>WASD</strong>: Bewegung (bei PC oder über Joystick)</li>
+      <li><strong>Leertaste</strong>: Dash (Schnell vorwärts springen)</li>
+      <li><strong>Q</strong>: Schild aktivieren (reduziert eingehenden Schaden)</li>
+    </ul>
+  </div>
+  
+  <!-- Game Over Menu -->
+  <div id="gameOverMenu">
+    <h1 id="gameOverMessage"></h1>
+    <button id="restartButton">Neu Starten</button>
+    <button id="mainMenuButton">Hauptmenü</button>
+  </div>
+  
+  <!-- Vollbild-Button -->
+  <button id="fullscreenButton">Vollbild</button>
+  
+  <!-- Canvas -->
+  <canvas id="gameCanvas"></canvas>
+  
+  <!-- Joystick & Aktions-Buttons (für mobile Steuerung) -->
+  <div id="joystickContainer">
+    <div id="joystickKnob"></div>
+  </div>
+  <div id="actionButtons">
+    <button id="btn-dash">Dash</button>
+    <button id="btn-shield">Shield</button>
+  </div>
+  
+  <!-- Hintergrundmusik (Audio, wird unsichtbar geladen) -->
+  <audio id="bgMusic" loop autoplay style="display:none;">
+    <source src="https://cdn.discordapp.com/attachments/947284681542492191/1338299591212138576/Horde.mp3?ex=67ac8e5e&is=67ab3cde&hm=7afe01b4701214a7f4cb9ab14d90d1b59b319c3c0a70f3d766d087d81dad017f&" type="audio/mp3">
+    Dein Browser unterstützt dieses Audioformat nicht.
+  </audio>
+  
+  <!-- Der Haupt‑Clientcode wird als ES‑Module geladen. (Da „main.js“ im Projekt‑Root liegt, verweise ggf. mit "../main.js") -->
+  <script type="module" src="../main.js"></script>
+</body>
+</html>

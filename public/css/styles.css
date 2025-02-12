@@ -1,0 +1,283 @@
+/* Grundstyles */
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #111;
+  font-family: 'Cinzel', serif;
+}
+canvas { display: block; }
+
+/* TITELBILDSCHIRM */
+#titleScreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('https://cdn.discordapp.com/attachments/1338927716971450409/1338929466579095686/image_4.png?ex=67acdebc&is=67ab8d3c&hm=076420b35f088fb0ced9dc5a74f5d037c2e4334887a446acfe18b254d05dfd96&') no-repeat center center;
+  background-size: cover;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 400;
+  color: white;
+  text-shadow: 2px 2px 4px black;
+  cursor: pointer;
+  transition: opacity 1s ease;
+}
+#titleScreen h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+#startText {
+  font-size: 32px;
+  animation: glow 1.5s infinite alternate;
+}
+@keyframes glow {
+  from { opacity: 0.5; text-shadow: 0 0 5px #fff; }
+  to   { opacity: 1; text-shadow: 0 0 20px #fff; }
+}
+
+/* ORIGINALES Archetyp-/Auswahlmenü */
+#selectionMenu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('https://opengameart.org/sites/default/files/MedievalParchment.jpg') no-repeat center center;
+  background-size: cover;
+  color: #333;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  text-shadow: 1px 1px 2px #fff;
+}
+#selectionMenu h1 {
+  margin-bottom: 20px;
+  font-size: 36px;
+}
+#selectionMenu button {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  padding: 10px 20px;
+  margin: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  width: 300px;
+  transition: background 0.3s, transform 0.2s;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+#selectionMenu button:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.05);
+}
+#selectionMenu button img {
+  height: 50px;
+  margin-right: 10px;
+}
+
+/* UI-Overlay (Steuerungshinweise) */
+#gameUI {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  padding: 10px 15px;
+  border-radius: 8px;
+  z-index: 50;
+  font-size: 14px;
+}
+#gameUI h2 {
+  margin: 0 0 5px 0;
+  font-size: 18px;
+}
+#gameUI ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+#gameUI li {
+  margin-bottom: 4px;
+}
+
+/* Game Over Menu */
+#gameOverMenu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  font-family: 'Cinzel', serif;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+#gameOverMenu h1 {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+#gameOverMenu button {
+  padding: 10px 20px;
+  font-size: 20px;
+  cursor: pointer;
+  margin: 10px;
+}
+
+/* Button für Vollbild */
+#fullscreenButton {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  font-size: 16px;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Joystick */
+#joystickContainer {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 420px;
+  height: 420px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  touch-action: none;
+  z-index: 150;
+  display: none;
+}
+#joystickKnob {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  background: rgba(255, 255, 255, 0.56);
+  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  touch-action: none;
+}
+
+/* Aktions-Buttons */
+#actionButtons {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  display: none;
+  flex-direction: column;
+  gap: 60px;
+  z-index: 150;
+}
+#actionButtons button {
+  width: 252px;
+  height: 252px;
+  border-radius: 10px;
+  font-size: 50px;
+  background: rgba(255,255,255,0.56);
+  border: none;
+}
+
+/* Neues Hauptmenu */
+#mainMenu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('https://cdn.discordapp.com/attachments/1338927716971450409/1338928144899506268/image_3.png?ex=67acdd81&is=67ab8c01&hm=548edaef6900b3cc1e08b87937f92bfe452759aa565bfde6ab0e5813ef48fdfc&') no-repeat center center;
+  background-size: cover;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 300;
+  color: white;
+  text-shadow: 2px 2px 4px black;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+#mainMenu h1 {
+  font-size: 48px;
+  margin-bottom: 40px;
+}
+#mainMenu button {
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  padding: 15px 30px;
+  margin: 10px;
+  font-size: 24px;
+  cursor: pointer;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  transition: transform 0.2s;
+}
+#mainMenu button:hover {
+  transform: scale(1.05);
+}
+
+/* Options Menu */
+#optionsMenu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('https://cdn.discordapp.com/attachments/1338927716971450409/1338928144899506268/image_3.png?ex=67acdd81&is=67ab8c01&hm=548edaef6900b3cc1e08b87937f92bfe452759aa565bfde6ab0e5813ef48fdfc&') no-repeat center center;
+  background-size: cover;
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 300;
+  color: white;
+  text-shadow: 2px 2px 4px black;
+}
+#optionsMenu h1 {
+  font-size: 42px;
+  margin-bottom: 20px;
+}
+#optionsMenu button {
+  background: rgba(255, 255, 255, 0.8);
+  border: none;
+  padding: 10px 20px;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  transition: transform 0.2s;
+}
+#optionsMenu button:hover {
+  transform: scale(1.05);
+}
+
+/* Lautstärkeregler */
+#volumeControls {
+  margin-bottom: 20px;
+  text-align: center;
+}
+#volumeControls label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 18px;
+}
+#volumeControls input[type="range"] {
+  width: 250px;
+}
