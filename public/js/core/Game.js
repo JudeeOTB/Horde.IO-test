@@ -197,8 +197,7 @@ export class Game {
       this.socket.on("playerDisconnected", (playerId) => {
         delete this.remotePlayers[playerId];
       });
-      // Listener für "startGame" hinzufügen: Sobald der Server das Event sendet,
-      // wird der Lobby-Screen ausgeblendet und das Auswahlmenü angezeigt.
+      // Listener für "startGame" hinzufügen:
       this.socket.on("startGame", () => {
         document.getElementById("lobbyScreen").style.display = "none";
         document.getElementById("selectionMenu").style.display = "flex";
@@ -358,16 +357,20 @@ export class Game {
     Utils.handleBuildings(this);
     Utils.resolveUnitCollisions(this);
     Utils.applySeparationForce(this, deltaTime);
+    
+    // Sieg-/Verlier-Bedingung:
     if (!this.playerKing || this.playerKing.hp <= 0) {
       this.gameOver = true;
       Utils.showGameOverMenu("Verloren");
-    } else {
+    } else if (!this.isMultiplayerMode) {
+      // Nur im Singleplayer: Wenn keine feindlichen Könige existieren, ist das Spiel gewonnen.
       let enemyKings = this.units.filter(u => u.unitType === "king" && u !== this.playerKing);
       if (enemyKings.length === 0) {
         this.gameOver = true;
         Utils.showGameOverMenu("Gewonnen");
       }
     }
+    
     if (this.isMultiplayerMode && this.socket && this.playerKing) {
       this.socket.emit("playerMoved", { x: this.playerKing.x, y: this.playerKing.y });
     }
