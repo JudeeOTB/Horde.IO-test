@@ -1,4 +1,5 @@
 // public/js/core/Game.js
+
 import { CONFIG } from "./config.js";
 import { Unit } from "../entities/Unit.js";
 import * as Utils from "../utils/utils.js";
@@ -6,14 +7,18 @@ import { Renderer } from "./Renderer.js";
 import { InputHandler } from "./InputHandler.js";
 import { SoundManager } from "./SoundManager.js";
 import { AssetManager } from "./AssetManager.js";
-import { OptionsMenu } from "../ui/OptionsMenu.js";
 
 export class Game {
+
   constructor() {
     // Canvas und Kontext
     this.canvas = document.getElementById("gameCanvas");
     this.ctx = this.canvas.getContext("2d");
-    
+
+    // Logische Größe (CSS-Pixel)
+    this.logicalWidth = window.innerWidth;
+    this.logicalHeight = window.innerHeight;
+
     // Spielzustand
     this.units = [];
     this.buildings = [];
@@ -30,62 +35,65 @@ export class Game {
     this.fps = 0;
     this.fpsCount = 0;
     this.fpsTime = 0;
-    
+
     // Kamera und View
     this.cameraX = 0;
     this.cameraY = 0;
     this.viewWidth = 0;
     this.viewHeight = 0;
-    
+
     // Safe-Zone
     this.safeZoneState = "delay";
     this.safeZoneTimer = 0;
     this.safeZoneCurrent = { centerX: CONFIG.worldWidth / 2, centerY: CONFIG.worldHeight / 2, radius: 7000 };
     this.safeZoneTarget = { centerX: CONFIG.worldWidth / 2, centerY: CONFIG.worldHeight / 2, radius: 7000 };
-    
+
     // Zeit und Bewegung
     this.timeOfDay = 0;
     this.lastKingX = 0;
     this.lastKingY = 0;
     this.kingStationaryTime = 0;
-    
+
     // Multiplayer
     this.isMultiplayerMode = false;
     this.socket = null;
     this.remotePlayers = {};
-    
+
     // Joystick
     this.joystickVector = { x: 0, y: 0 };
-    
+
     // Mobile-Erkennung
     this.isMobile = /Mobi|Android/i.test(navigator.userAgent);
-    this.gameZoom = this.isMobile ? 0.8 : 1.0;
-    this.hudScale = this.isMobile ? 0.8 : 1.0;
-    
+    // Zoom deaktivieren – HUD und Spielwelt werden ohne zusätzlichen Zoom gezeichnet
+    this.gameZoom = 1.0;
+    this.hudScale = 1.0;
+
     // Assets laden über den zentralen AssetManager
     AssetManager.loadAssets();
     this.assets = AssetManager.assets;
     // Stelle sicher, dass der Slash-Sprite verfügbar ist:
     this.slashImage = this.assets.slash;
-    
+
     // Initialisiere Submodule (nur einmal)
     this.inputHandler = new InputHandler(this);
     this.soundManager = new SoundManager();
     this.renderer = new Renderer(this);
-    // OptionsMenu-Instanz erstellen – die zugehörigen DOM-Elemente müssen bereits vorhanden sein
-    this.optionsMenu = new OptionsMenu(this);
-    
-    // Fenster-Events
-    window.addEventListener("resize", () => this.resizeCanvas());
-    window.addEventListener("orientationchange", () => this.resizeCanvas());
-    window.addEventListener("resize", () => this.resizeTouchControls());
-    window.addEventListener("orientationchange", () => this.resizeTouchControls());
+
+    // Fenster-Events (Resize und Orientationchange)
+    window.addEventListener("resize", () => {
+      this.resizeCanvas();
+      this.resizeTouchControls();
+    });
+    window.addEventListener("orientationchange", () => {
+      this.resizeCanvas();
+      this.resizeTouchControls();
+    });
     this.resizeCanvas();
     this.resizeTouchControls();
-    
-    // Menü-Events (inklusive Multiplayer-Integration)
+
+    // Menü-Events
     this.setupMenuEvents();
-    
+
     // Game Over – Neustart
     document.getElementById("restartButton").addEventListener("click", () => {
       this.initGame(this.playerFaction);
@@ -94,12 +102,20 @@ export class Game {
       requestAnimationFrame((ts) => this.gameLoop(ts));
     });
   }
-  
+
+  // Angepasste resizeCanvas-Methode: Nutzt devicePixelRatio und speichert die logische Größe
   resizeCanvas() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    const ratio = window.devicePixelRatio || 1;
+    this.canvas.width = window.innerWidth * ratio;
+    this.canvas.height = window.innerHeight * ratio;
+    this.canvas.style.width = window.innerWidth + "px";
+    this.canvas.style.height = window.innerHeight + "px";
+    this.logicalWidth = window.innerWidth;
+    this.logicalHeight = window.innerHeight;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(ratio, ratio);
   }
-  
+
   resizeTouchControls() {
     let scale = 0.4;
     let containerSize = 420 * scale;
@@ -118,7 +134,7 @@ export class Game {
       btn.style.fontSize = actionFontSize + "px";
     });
   }
-  
+
   toggleFullscreen() {
     if (!document.fullscreenElement) {
       if (document.documentElement.requestFullscreen) {
@@ -134,7 +150,7 @@ export class Game {
       }
     }
   }
-  
+
   setupMenuEvents() {
     // Titelbildschirm
     const bgMusic = document.getElementById("bgMusic");
@@ -149,25 +165,18 @@ export class Game {
         setTimeout(() => { mainMenu.style.opacity = "1"; }, 10);
       }, 1000);
     });
-    
-    // Hauptmenü – Singleplayer
+
+    // Hauptmenü – Singleplayer und Multiplayer
     document.getElementById("btn-singleplayer").addEventListener("click", () => {
       this.isMultiplayerMode = false;
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       document.getElementById("selectionMenu").style.display = "flex";
     });
-    
-    // Hauptmenü – Multiplayer: Aufbau der Socket.IO-Verbindung und Lobby-Phase
+
     document.getElementById("btn-multiplayer").addEventListener("click", () => {
       this.isMultiplayerMode = true;
       this.socket = io();
-      
-      // Zeige den Lobby-Bereich
-      document.getElementById("mainMenu").style.display = "none";
-      document.getElementById("lobbyScreen").style.display = "block";
-      
-      // Registriere Socket.IO-Events:
       this.socket.on("currentPlayers", (players) => {
         for (let id in players) {
           if (id !== this.socket.id) {
@@ -177,7 +186,6 @@ export class Game {
       });
       this.socket.on("newPlayer", (playerInfo) => {
         this.remotePlayers[playerInfo.id] = playerInfo;
-        // Sobald mindestens ein weiterer Spieler beigetreten ist, signalisiert der Server den Start
       });
       this.socket.on("playerMoved", (playerInfo) => {
         if (this.remotePlayers[playerInfo.id]) {
@@ -188,28 +196,23 @@ export class Game {
       this.socket.on("playerDisconnected", (playerId) => {
         delete this.remotePlayers[playerId];
       });
-      // Wenn der Server signalisiert, dass genügend Spieler da sind:
-      this.socket.on("startGame", () => {
-        // Blende Lobby aus und zeige das Auswahlmenü
-        document.getElementById("lobbyScreen").style.display = "none";
-        document.getElementById("selectionMenu").style.display = "flex";
-      });
-      
-      // (Optional: Du könntest auch einen Timeout einbauen, falls nicht genügend Spieler erscheinen)
+      document.getElementById("mainMenu").style.display = "none";
+      document.getElementById("mainMenu").style.opacity = "0";
+      document.getElementById("selectionMenu").style.display = "flex";
     });
-    
-    // Optionen anzeigen
+
     document.getElementById("btn-options").addEventListener("click", () => {
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       document.getElementById("optionsMenu").style.display = "flex";
     });
+
     document.getElementById("btn-back").addEventListener("click", () => {
       document.getElementById("optionsMenu").style.display = "none";
       document.getElementById("mainMenu").style.display = "flex";
       setTimeout(() => { document.getElementById("mainMenu").style.opacity = "1"; }, 10);
     });
-    
+
     document.getElementById("mainMenuButton").addEventListener("click", () => {
       document.getElementById("gameOverMenu").style.display = "none";
       const mainMenu = document.getElementById("mainMenu");
@@ -217,7 +220,7 @@ export class Game {
       mainMenu.style.opacity = "0";
       setTimeout(() => { mainMenu.style.opacity = "1"; }, 10);
     });
-    
+
     // Auswahlmenü – Faction auswählen und Spiel starten
     document.querySelectorAll("#selectionMenu button").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -236,9 +239,9 @@ export class Game {
       });
     });
   }
-  
+
   initGame(selectedFaction) {
-    // Spielzustand zurücksetzen
+    // Zurücksetzen des Spielzustands
     this.units = [];
     this.buildings = [];
     this.souls = [];
@@ -256,7 +259,7 @@ export class Game {
     this.safeZoneTimer = 0;
     this.safeZoneCurrent = { centerX: CONFIG.worldWidth / 2, centerY: CONFIG.worldHeight / 2, radius: 7000 };
     this.safeZoneTarget = { centerX: CONFIG.worldWidth / 2, centerY: CONFIG.worldHeight / 2, radius: 7000 };
-  
+
     if (!this.isMultiplayerMode) {
       const totalKings = 11;
       const margin = 200;
@@ -294,11 +297,10 @@ export class Game {
       for (let i = 0; i < 10; i++) { this.units.push(Utils.spawnVassal(this.playerKing)); }
       this.socket.emit("playerJoined", { x: this.playerKing.x, y: this.playerKing.y, faction: selectedFaction });
     }
-    // Hindernis-Erzeugung: In Utils.generateObstacles() werden nun Instanzen der Forest-Klasse erstellt (für type "forest")
     Utils.generateObstacles(this);
     Utils.generateBuildingClusters(this);
   }
-  
+
   update(deltaTime) {
     if (this.gameOver) return;
     this.updateTime(deltaTime);
@@ -346,16 +348,15 @@ export class Game {
         Utils.showGameOverMenu("Gewonnen");
       }
     }
-    // Multiplayer: Sende eigene Spielerbewegung an den Server
     if (this.isMultiplayerMode && this.socket && this.playerKing) {
       this.socket.emit("playerMoved", { x: this.playerKing.x, y: this.playerKing.y });
     }
   }
-  
+
   updateTime(deltaTime) {
     this.timeOfDay = (this.timeOfDay + deltaTime / 60000) % 1;
   }
-  
+
   updateSafeZone(deltaTime) {
     if (this.safeZoneState === "delay") {
       this.safeZoneTimer += deltaTime;
@@ -414,7 +415,7 @@ export class Game {
       }
     }
   }
-  
+
   gameLoop(timestamp) {
     try {
       let deltaTime = timestamp - this.lastTime;

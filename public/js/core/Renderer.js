@@ -1,4 +1,5 @@
 // public/js/core/Renderer.js
+
 import { CONFIG } from "./config.js";
 
 export class Renderer {
@@ -6,18 +7,20 @@ export class Renderer {
     this.game = game;
     this.ctx = game.ctx;
   }
-  
+
   draw() {
     const ctx = this.ctx;
     const game = this.game;
-    ctx.clearRect(0, 0, game.canvas.width, game.canvas.height);
-    
+    // Leere den Canvas anhand der logischen (CSS‑)Größe
+    ctx.clearRect(0, 0, game.logicalWidth, game.logicalHeight);
+
+    // Zeichne den Spielinhalt (Welt)
     if (game.isMobile) {
       ctx.save();
+      // Weltzeichnung – es wird der gameZoom-Faktor angewendet (jetzt 1.0)
       ctx.scale(game.gameZoom, game.gameZoom);
-      game.viewWidth = game.canvas.width / game.gameZoom;
-      game.viewHeight = game.canvas.height / game.gameZoom;
-      
+      game.viewWidth = game.logicalWidth / game.gameZoom;
+      game.viewHeight = game.logicalHeight / game.gameZoom;
       if (game.playerKing) {
         game.cameraX = game.playerKing.x - game.viewWidth / 2;
         game.cameraY = game.playerKing.y - game.viewHeight / 2;
@@ -27,56 +30,48 @@ export class Renderer {
         game.cameraX = 0;
         game.cameraY = 0;
       }
-      
       this.drawGround();
       game.obstacles.forEach(o => o.draw(ctx, game.cameraX, game.cameraY));
-      // Gebäude werden mit dem assets-Parameter gezeichnet
       game.buildings.forEach(b => b.draw(ctx, game.cameraX, game.cameraY, game.assets));
-      // Hier wird nun game.assets an die Souls übergeben
       game.souls.forEach(s => s.draw(ctx, game.cameraX, game.cameraY, game.assets));
       game.powerUps.forEach(p => p.draw(ctx, game.cameraX, game.cameraY));
-      game.projectiles.forEach(proj => 
+      game.projectiles.forEach(proj =>
         proj.draw(ctx, game.cameraX, game.cameraY, game.assets.arrow)
       );
-      game.units.forEach(u => 
+      game.units.forEach(u =>
         u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets)
       );
       this.drawSafeZone();
       ctx.restore();
       this.drawMinimap();
     } else {
-      game.viewWidth = game.canvas.width;
-      game.viewHeight = game.canvas.height;
-      
+      // Desktop: Kein zusätzlicher Zoom
+      game.viewWidth = game.logicalWidth;
+      game.viewHeight = game.logicalHeight;
       if (game.playerKing) {
-        game.cameraX = game.playerKing.x - game.canvas.width / 2;
-        game.cameraY = game.playerKing.y - game.canvas.height / 2;
-        game.cameraX = Math.max(0, Math.min(CONFIG.worldWidth - game.canvas.width, game.cameraX));
-        game.cameraY = Math.max(0, Math.min(CONFIG.worldHeight - game.canvas.height, game.cameraY));
+        game.cameraX = game.playerKing.x - game.logicalWidth / 2;
+        game.cameraY = game.playerKing.y - game.logicalHeight / 2;
+        game.cameraX = Math.max(0, Math.min(CONFIG.worldWidth - game.logicalWidth, game.cameraX));
+        game.cameraY = Math.max(0, Math.min(CONFIG.worldHeight - game.logicalHeight, game.cameraY));
       } else {
         game.cameraX = 0;
         game.cameraY = 0;
       }
-      
       this.drawGround();
       game.obstacles.forEach(o => o.draw(ctx, game.cameraX, game.cameraY));
-      // Auch hier assets an Gebäude übergeben
       game.buildings.forEach(b => b.draw(ctx, game.cameraX, game.cameraY, game.assets));
-      // Souls erhalten den assets-Parameter
       game.souls.forEach(s => s.draw(ctx, game.cameraX, game.cameraY, game.assets));
       game.powerUps.forEach(p => p.draw(ctx, game.cameraX, game.cameraY));
-      game.projectiles.forEach(proj => 
+      game.projectiles.forEach(proj =>
         proj.draw(ctx, game.cameraX, game.cameraY, game.assets.arrow)
       );
-      game.units.forEach(u => 
+      game.units.forEach(u =>
         u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets)
       );
       this.drawSafeZone();
       this.drawMinimap();
     }
-    
     this.drawHUD();
-    
     if (game.isMultiplayerMode && game.socket) {
       for (let id in game.remotePlayers) {
         let rp = game.remotePlayers[id];
@@ -90,15 +85,13 @@ export class Renderer {
       }
     }
   }
-  
+
   drawGround() {
     const ctx = this.ctx;
     const game = this.game;
     let brightness = 0.5 + 0.5 * Math.abs(Math.sin(game.timeOfDay * Math.PI));
-    let vw = game.isMobile ? game.viewWidth : game.canvas.width;
-    let vh = game.isMobile ? game.viewHeight : game.canvas.height;
-    
-    // Verwende das Bodenbild aus dem AssetManager
+    let vw = game.isMobile ? game.viewWidth : game.logicalWidth;
+    let vh = game.isMobile ? game.viewHeight : game.logicalHeight;
     if (game.assets.ground && game.assets.ground.complete) {
       let pattern = ctx.createPattern(game.assets.ground, "repeat");
       if (pattern && pattern.setTransform) {
@@ -113,11 +106,10 @@ export class Renderer {
       ctx.fillRect(0, 0, vw, vh);
     }
   }
-  
+
   drawSafeZone() {
     const ctx = this.ctx;
     const game = this.game;
-    
     if (game.safeZoneState !== "delay") {
       ctx.strokeStyle = "red";
       ctx.lineWidth = 4;
@@ -129,7 +121,6 @@ export class Renderer {
         0, Math.PI * 2
       );
       ctx.stroke();
-      
       if (
         game.safeZoneCurrent.radius !== game.safeZoneTarget.radius ||
         game.safeZoneCurrent.centerX !== game.safeZoneTarget.centerX ||
@@ -150,17 +141,23 @@ export class Renderer {
       }
     }
   }
-  
+
   drawMinimap() {
     const ctx = this.ctx;
     const game = this.game;
-    let minimapWidth = 200, minimapHeight = 200, margin = 10;
-    let minimapX = game.canvas.width - minimapWidth - margin;
+    const r = window.devicePixelRatio || 1;
+    // Verwende die logische Breite (CSS-Pixel) für die Positionierung
+    const cw = game.logicalWidth;
+    const margin = 10;
+    const minimapWidth = 200;
+    const minimapHeight = 200;
+    let minimapX = cw - minimapWidth - margin;
     let minimapY = margin;
     let scale = minimapWidth / CONFIG.worldWidth;
-    
     ctx.save();
     ctx.resetTransform();
+    // Um HUD-Elemente in CSS-Koordinaten zu zeichnen, wende den devicePixelRatio-Faktor an
+    ctx.scale(r, r);
     ctx.fillStyle = "#225522";
     ctx.fillRect(minimapX, minimapY, minimapWidth, minimapHeight);
     ctx.save();
@@ -169,7 +166,6 @@ export class Renderer {
     ctx.beginPath();
     ctx.rect(0, 0, CONFIG.worldWidth, CONFIG.worldHeight);
     ctx.clip();
-    
     game.obstacles.forEach(o => o.drawMinimap(ctx));
     game.buildings.forEach(b => {
       ctx.fillStyle = "grey";
@@ -189,7 +185,6 @@ export class Renderer {
       ctx.fillStyle = p.effectType === "speed" ? "yellow" : "orange";
       ctx.fillRect(p.x, p.y, p.width, p.height);
     });
-    
     ctx.strokeStyle = "red";
     ctx.lineWidth = 2 / scale;
     ctx.beginPath();
@@ -200,7 +195,6 @@ export class Renderer {
       0, Math.PI * 2
     );
     ctx.stroke();
-    
     if (
       game.safeZoneCurrent.radius !== game.safeZoneTarget.radius ||
       game.safeZoneCurrent.centerX !== game.safeZoneTarget.centerX ||
@@ -217,26 +211,30 @@ export class Renderer {
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    
     ctx.strokeStyle = "white";
     ctx.lineWidth = 2 / scale;
     ctx.strokeRect(game.cameraX, game.cameraY, game.viewWidth, game.viewHeight);
     ctx.restore();
-    
     ctx.strokeStyle = "white";
     ctx.lineWidth = 2;
     ctx.strokeRect(minimapX, minimapY, minimapWidth, minimapHeight);
     ctx.restore();
   }
-  
+
   drawHUD() {
     const ctx = this.ctx;
     const game = this.game;
     if (!game.playerKing) return;
-    
+    const r = window.devicePixelRatio || 1;
+    // Verwende die logische Größe (CSS-Pixel) für HUD-Zeichnung
+    const cw = game.logicalWidth;
+    const ch = game.logicalHeight;
     ctx.save();
-    if (game.isMobile) { ctx.scale(game.hudScale, game.hudScale); }
+    // Setze Transformationsmatrix zurück und wende devicePixelRatio an, um in CSS-Koordinaten zu arbeiten
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(r, r);
     
+    // Könige-Anzeige (links oben)
     let kingsAlive = game.units.filter(u => u.unitType === "king").length;
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(10, 10, 160, 40);
@@ -244,6 +242,7 @@ export class Renderer {
     ctx.fillStyle = "white";
     ctx.fillText("Könige: " + kingsAlive, 20, 40);
     
+    // Dash-Cooldown-Balken
     let dashRatio = Math.min(game.playerKing.dashTimer / CONFIG.dashCooldown, 1);
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(10, 60, 160, 20);
@@ -251,11 +250,11 @@ export class Renderer {
     ctx.fillRect(10, 60, 160 * dashRatio, 20);
     ctx.strokeStyle = "white";
     ctx.strokeRect(10, 60, 160, 20);
-    
     ctx.font = "16px 'Cinzel', serif";
     ctx.fillStyle = "white";
     ctx.fillText("Dash", 75, 75);
     
+    // Shield-Cooldown-Balken
     let shieldRatio = Math.min(game.playerKing.shieldCooldownTimer / CONFIG.shieldAbilityCooldown, 1);
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(10, 90, 160, 20);
@@ -263,17 +262,16 @@ export class Renderer {
     ctx.fillRect(10, 90, 160 * shieldRatio, 20);
     ctx.strokeStyle = "white";
     ctx.strokeRect(10, 90, 160, 20);
-    
     ctx.font = "16px 'Cinzel', serif";
     ctx.fillStyle = "white";
     ctx.fillText("Shield", 75, 105);
     
+    // Vasallen-Counter und Bogenschützen-Anzeige (links mittig)
     let vassals = game.units.filter(u => u.unitType === "vassal" && u.team === game.playerKing.team);
     let v1 = vassals.filter(u => u.level === 1).length;
     let v2 = vassals.filter(u => u.level === 2).length;
     let v3 = vassals.filter(u => u.level === 3).length;
     let archers = game.units.filter(u => u.unitType === "archer" && u.team === game.playerKing.team);
-    
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(10, 120, 220, 160);
     ctx.font = "16px 'Cinzel', serif";
@@ -287,21 +285,21 @@ export class Renderer {
     ctx.fillText("Level 3: " + v3, 50, 228);
     ctx.fillText("Bogenschützen: " + archers.length, 20, 258);
     
+    // FPS-Anzeige (unten links)
     ctx.font = "16px Arial";
     ctx.fillStyle = "white";
     ctx.textAlign = "left";
-    let fpsY = game.isMobile ? game.canvas.height / game.hudScale - 10 : game.canvas.height - 10;
-    ctx.fillText("FPS: " + game.fps, 10, fpsY);
+    ctx.fillText("FPS: " + game.fps, 10, ch - 10);
     
+    // Timer (mittig oben)
     let totalSeconds = Math.floor(game.gameTime / 1000);
     let minutes = Math.floor(totalSeconds / 60);
     let seconds = totalSeconds % 60;
     let timerText = ("0" + minutes).slice(-2) + ":" + ("0" + seconds).slice(-2);
-    let timerY = game.isMobile ? 30 / game.hudScale : 30;
     ctx.font = "20px Arial";
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
-    ctx.fillText(timerText, game.isMobile ? game.canvas.width / (2 * game.hudScale) : game.canvas.width / 2, timerY);
+    ctx.fillText(timerText, cw / 2, 30);
     ctx.textAlign = "left";
     ctx.restore();
   }
