@@ -6,6 +6,7 @@ import { Renderer } from "./Renderer.js";
 import { InputHandler } from "./InputHandler.js";
 import { SoundManager } from "./SoundManager.js";
 import { AssetManager } from "./AssetManager.js";
+import { OptionsMenu } from "../ui/OptionsMenu.js";
 
 export class Game {
   constructor() {
@@ -71,6 +72,8 @@ export class Game {
     this.inputHandler = new InputHandler(this);
     this.soundManager = new SoundManager();
     this.renderer = new Renderer(this);
+    // OptionsMenu-Instanz erstellen – alle zugehörigen DOM-Elemente müssen bereits vorhanden sein.
+    this.optionsMenu = new OptionsMenu(this);
     
     // Fenster-Events
     window.addEventListener("resize", () => this.resizeCanvas());
@@ -273,6 +276,8 @@ export class Game {
       for (let i = 0; i < 10; i++) { this.units.push(Utils.spawnVassal(this.playerKing)); }
       this.socket.emit("playerJoined", { x: this.playerKing.x, y: this.playerKing.y, faction: selectedFaction });
     }
+    // Hier erfolgt die Hindernis-Erzeugung:
+    // In der Utils.generateObstacles()-Funktion werden nun Instanzen der Forest-Klasse erzeugt (statt Obstacle mit type "forest")
     Utils.generateObstacles(this);
     Utils.generateBuildingClusters(this);
   }

@@ -1,11 +1,13 @@
+// public/js/utils/utils.js
 import { Building } from "../entities/Building.js";
 import { Obstacle } from "../entities/Obstacle.js";
 import { Soul } from "../entities/Soul.js";
 import { Unit } from "../entities/Unit.js";
 import { Projectile } from "../entities/Projectile.js";
 import { CONFIG } from "../core/config.js";
-export { CONFIG };
+import { Forest } from "../entities/Forest.js"; // Neuer Import
 
+export { CONFIG };
 
 // Vassal spawnen (gibt den neuen Vassal zurück)
 export function spawnVassal(leader) {
@@ -16,16 +18,25 @@ export function spawnVassal(leader) {
   return vassal;
 }
 
+// Angepasste Hindernis-Erzeugung: Bei "forest" wird eine Forest-Instanz erstellt.
 export function generateObstacles(game) {
   game.obstacles = [];
   const numObstacles = 20;
   for (let i = 0; i < numObstacles; i++) {
-    let type = (Math.random() < 0.7) ? "forest" : "water";
+    let rand = Math.random();
+    let type = (rand < 0.7) ? "forest" : "water";
     let w = 200 + Math.random() * 600;
     let h = 200 + Math.random() * 600;
     let x = Math.random() * (CONFIG.worldWidth - w);
     let y = Math.random() * (CONFIG.worldHeight - h);
-    game.obstacles.push(new Obstacle(x, y, w, h, type));
+    
+    if (type === "forest") {
+      // Nutze die neue Forest-Klasse für Wälder
+      game.obstacles.push(new Forest(x, y, w, h));
+    } else {
+      // Andernfalls wird ein normales Obstacle erstellt.
+      game.obstacles.push(new Obstacle(x, y, w, h, type));
+    }
   }
 }
 
