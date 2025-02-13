@@ -72,7 +72,7 @@ export class Game {
     this.inputHandler = new InputHandler(this);
     this.soundManager = new SoundManager();
     this.renderer = new Renderer(this);
-    // OptionsMenu-Instanz erstellen – alle zugehörigen DOM-Elemente müssen bereits vorhanden sein.
+    // OptionsMenu-Instanz erstellen – die zugehörigen DOM-Elemente müssen bereits vorhanden sein
     this.optionsMenu = new OptionsMenu(this);
     
     // Fenster-Events
@@ -83,7 +83,7 @@ export class Game {
     this.resizeCanvas();
     this.resizeTouchControls();
     
-    // Menü-Events
+    // Menü-Events (inklusive Multiplayer-Integration)
     this.setupMenuEvents();
     
     // Game Over – Neustart
@@ -150,16 +150,19 @@ export class Game {
       }, 1000);
     });
     
-    // Hauptmenü – Singleplayer und Multiplayer
+    // Hauptmenü – Singleplayer
     document.getElementById("btn-singleplayer").addEventListener("click", () => {
       this.isMultiplayerMode = false;
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       document.getElementById("selectionMenu").style.display = "flex";
     });
+    
+    // Hauptmenü – Multiplayer: Hier wird die Socket.IO-Verbindung aufgebaut und die Events registriert
     document.getElementById("btn-multiplayer").addEventListener("click", () => {
       this.isMultiplayerMode = true;
       this.socket = io();
+      // Empfange aktuelle Spieler vom Server
       this.socket.on("currentPlayers", (players) => {
         for (let id in players) {
           if (id !== this.socket.id) {
@@ -167,22 +170,28 @@ export class Game {
           }
         }
       });
+      // Wenn ein neuer Spieler beitritt
       this.socket.on("newPlayer", (playerInfo) => {
         this.remotePlayers[playerInfo.id] = playerInfo;
       });
+      // Aktualisierung der Bewegungen
       this.socket.on("playerMoved", (playerInfo) => {
         if (this.remotePlayers[playerInfo.id]) {
           this.remotePlayers[playerInfo.id].x = playerInfo.x;
           this.remotePlayers[playerInfo.id].y = playerInfo.y;
         }
       });
+      // Wenn ein Spieler die Verbindung trennt
       this.socket.on("playerDisconnected", (playerId) => {
         delete this.remotePlayers[playerId];
       });
+      
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       document.getElementById("selectionMenu").style.display = "flex";
     });
+    
+    // Optionen anzeigen
     document.getElementById("btn-options").addEventListener("click", () => {
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
@@ -193,6 +202,7 @@ export class Game {
       document.getElementById("mainMenu").style.display = "flex";
       setTimeout(() => { document.getElementById("mainMenu").style.opacity = "1"; }, 10);
     });
+    
     document.getElementById("mainMenuButton").addEventListener("click", () => {
       document.getElementById("gameOverMenu").style.display = "none";
       const mainMenu = document.getElementById("mainMenu");
@@ -200,6 +210,7 @@ export class Game {
       mainMenu.style.opacity = "0";
       setTimeout(() => { mainMenu.style.opacity = "1"; }, 10);
     });
+    
     // Auswahlmenü – Faction auswählen und Spiel starten
     document.querySelectorAll("#selectionMenu button").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -220,7 +231,7 @@ export class Game {
   }
   
   initGame(selectedFaction) {
-    // Zurücksetzen des Spielzustands
+    // Spielzustand zurücksetzen
     this.units = [];
     this.buildings = [];
     this.souls = [];
@@ -276,8 +287,7 @@ export class Game {
       for (let i = 0; i < 10; i++) { this.units.push(Utils.spawnVassal(this.playerKing)); }
       this.socket.emit("playerJoined", { x: this.playerKing.x, y: this.playerKing.y, faction: selectedFaction });
     }
-    // Hier erfolgt die Hindernis-Erzeugung:
-    // In der Utils.generateObstacles()-Funktion werden nun Instanzen der Forest-Klasse erzeugt (statt Obstacle mit type "forest")
+    // Hindernis-Erzeugung: Hier werden Instanzen der Forest-Klasse erstellt, falls type "forest" benötigt wird.
     Utils.generateObstacles(this);
     Utils.generateBuildingClusters(this);
   }
@@ -329,6 +339,7 @@ export class Game {
         Utils.showGameOverMenu("Gewonnen");
       }
     }
+    // Multiplayer: Sende Spielerbewegung an den Server
     if (this.isMultiplayerMode && this.socket && this.playerKing) {
       this.socket.emit("playerMoved", { x: this.playerKing.x, y: this.playerKing.y });
     }
