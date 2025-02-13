@@ -201,6 +201,8 @@ export class Game {
       document.getElementById("mainMenu").style.opacity = "0";
       // Zeige den Multiplayer-Wartebildschirm an
       document.getElementById("lobbyScreen").style.display = "flex";
+      // Sende das "lobbyReady"-Event an den Server
+      this.socket.emit("lobbyReady");
       // Deaktiviere Canvas-Pointer-Events, damit Klicks den UI-Elementen zugehen
       this.canvas.style.pointerEvents = "none";
     });
