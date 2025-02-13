@@ -17,7 +17,6 @@
     <h1>Horde of Kings</h1>
     <p id="startText">press start to play</p>
   </div>
-  
   <!-- Neues Hauptmenü -->
   <div id="mainMenu">
     <h1>RTS-Hybrid: Battle Royale</h1>
@@ -25,13 +24,11 @@
     <button id="btn-multiplayer">Multiplayer</button>
     <button id="btn-options">Optionen</button>
   </div>
-  
   <!-- Lobby-Bereich (wird im Multiplayer-Modus angezeigt) -->
-  <div id="lobbyScreen" style="display:none;">
+  <div id="lobbyScreen">
     <h1>Warte auf weitere Spieler...</h1>
     <p>Bitte warten, bis mindestens ein weiterer Spieler beigetreten ist.</p>
   </div>
-  
   <!-- Options-Menü (mit Lautstärkereglern) -->
   <div id="optionsMenu">
     <h1>Optionen</h1>
@@ -44,7 +41,6 @@
     </div>
     <button id="btn-back">Zurück</button>
   </div>
-  
   <!-- Ursprüngliches Archetyp-Auswahlmenü -->
   <div id="selectionMenu">
     <h1>Wähle deinen Archetyp</h1>
@@ -61,7 +57,6 @@
       Ork
     </button>
   </div>
-  
   <!-- UI-Overlay (Steuerungshinweise) -->
   <div id="gameUI">
     <h2>Steuerung</h2>
@@ -71,20 +66,16 @@
       <li><strong>Q</strong>: Schild aktivieren (reduziert eingehenden Schaden)</li>
     </ul>
   </div>
-  
   <!-- Game Over Menu -->
   <div id="gameOverMenu">
     <h1 id="gameOverMessage"></h1>
     <button id="restartButton">Neu Starten</button>
     <button id="mainMenuButton">Hauptmenü</button>
   </div>
-  
   <!-- Vollbild-Button -->
   <button id="fullscreenButton">Vollbild</button>
-  
   <!-- Canvas -->
   <canvas id="gameCanvas"></canvas>
-  
   <!-- Joystick & Aktions-Buttons (für mobile Steuerung) -->
   <div id="joystickContainer">
     <div id="joystickKnob"></div>
@@ -93,13 +84,11 @@
     <button id="btn-dash">Dash</button>
     <button id="btn-shield">Shield</button>
   </div>
-  
   <!-- Hintergrundmusik (wird unsichtbar geladen) -->
   <audio id="bgMusic" loop autoplay style="display:none;">
     <source src="assets/music/Theme Music.mp3" type="audio/mp3">
     Dein Browser unterstützt dieses Audioformat nicht.
   </audio>
-  
   <!-- Haupt-Clientcode als ES-Modul -->
   <script type="module" src="js/main.js"></script>
 </body>

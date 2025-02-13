@@ -1,13 +1,16 @@
 /* Grundstyles */
+
 body {
   margin: 0;
   overflow: hidden;
   background: #111;
   font-family: 'Cinzel', serif;
 }
+
 canvas { display: block; }
 
 /* TITELBILDSCHIRM */
+
 #titleScreen {
   position: fixed;
   top: 0;
@@ -26,20 +29,24 @@ canvas { display: block; }
   cursor: pointer;
   transition: opacity 1s ease;
 }
+
 #titleScreen h1 {
   font-size: 48px;
   margin-bottom: 20px;
 }
+
 #startText {
   font-size: 32px;
   animation: glow 1.5s infinite alternate;
 }
+
 @keyframes glow {
   from { opacity: 0.5; text-shadow: 0 0 5px #fff; }
-  to   { opacity: 1; text-shadow: 0 0 20px #fff; }
+  to { opacity: 1; text-shadow: 0 0 20px #fff; }
 }
 
 /* ORIGINALES Archetyp-/Auswahlmenü */
+
 #selectionMenu {
   position: fixed;
   top: 0;
@@ -56,10 +63,12 @@ canvas { display: block; }
   z-index: 100;
   text-shadow: 1px 1px 2px #fff;
 }
+
 #selectionMenu h1 {
   margin-bottom: 20px;
   font-size: 36px;
 }
+
 #selectionMenu button {
   background: rgba(255, 255, 255, 0.9);
   border: none;
@@ -74,16 +83,19 @@ canvas { display: block; }
   border-radius: 5px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
+
 #selectionMenu button:hover {
   background: rgba(255, 255, 255, 1);
   transform: scale(1.05);
 }
+
 #selectionMenu button img {
   height: 50px;
   margin-right: 10px;
 }
 
 /* UI-Overlay (Steuerungshinweise) */
+
 #gameUI {
   position: fixed;
   top: 10px;
@@ -95,20 +107,24 @@ canvas { display: block; }
   z-index: 50;
   font-size: 14px;
 }
+
 #gameUI h2 {
   margin: 0 0 5px 0;
   font-size: 18px;
 }
+
 #gameUI ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
+
 #gameUI li {
   margin-bottom: 4px;
 }
 
 /* Game Over Menu */
+
 #gameOverMenu {
   position: fixed;
   top: 0;
@@ -124,10 +140,12 @@ canvas { display: block; }
   justify-content: center;
   z-index: 200;
 }
+
 #gameOverMenu h1 {
   font-size: 48px;
   margin-bottom: 20px;
 }
+
 #gameOverMenu button {
   padding: 10px 20px;
   font-size: 20px;
@@ -136,6 +154,7 @@ canvas { display: block; }
 }
 
 /* Button für Vollbild */
+
 #fullscreenButton {
   position: fixed;
   bottom: 10px;
@@ -152,6 +171,7 @@ canvas { display: block; }
 }
 
 /* Joystick */
+
 #joystickContainer {
   position: fixed;
   bottom: 20px;
@@ -164,6 +184,7 @@ canvas { display: block; }
   z-index: 150;
   display: none;
 }
+
 #joystickKnob {
   position: absolute;
   width: 210px;
@@ -177,6 +198,7 @@ canvas { display: block; }
 }
 
 /* Aktions-Buttons */
+
 #actionButtons {
   position: fixed;
   right: 20px;
@@ -186,6 +208,7 @@ canvas { display: block; }
   gap: 60px;
   z-index: 150;
 }
+
 #actionButtons button {
   width: 252px;
   height: 252px;
@@ -196,6 +219,7 @@ canvas { display: block; }
 }
 
 /* Neues Hauptmenu */
+
 #mainMenu {
   position: fixed;
   top: 0;
@@ -214,10 +238,12 @@ canvas { display: block; }
   opacity: 0;
   transition: opacity 1s ease;
 }
+
 #mainMenu h1 {
   font-size: 48px;
   margin-bottom: 40px;
 }
+
 #mainMenu button {
   background: rgba(255, 255, 255, 0.8);
   border: none;
@@ -229,11 +255,13 @@ canvas { display: block; }
   box-shadow: 0 4px 8px rgba(0,0,0,0.4);
   transition: transform 0.2s;
 }
+
 #mainMenu button:hover {
   transform: scale(1.05);
 }
 
 /* Options Menu */
+
 #optionsMenu {
   position: fixed;
   top: 0;
@@ -250,10 +278,12 @@ canvas { display: block; }
   color: white;
   text-shadow: 2px 2px 4px black;
 }
+
 #optionsMenu h1 {
   font-size: 42px;
   margin-bottom: 20px;
 }
+
 #optionsMenu button {
   background: rgba(255, 255, 255, 0.8);
   border: none;
@@ -264,20 +294,39 @@ canvas { display: block; }
   box-shadow: 0 4px 8px rgba(0,0,0,0.4);
   transition: transform 0.2s;
 }
+
 #optionsMenu button:hover {
   transform: scale(1.05);
 }
 
 /* Lautstärkeregler */
+
 #volumeControls {
   margin-bottom: 20px;
   text-align: center;
 }
+
 #volumeControls label {
   display: block;
   margin-bottom: 5px;
   font-size: 18px;
 }
+
 #volumeControls input[type="range"] {
   width: 250px;
+}
+
+/* LOBBY-BEREICH (Multiplayer Wartebildschirm) */
+#lobbyScreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('/assets/images/multiplayerwaitscreen.png') no-repeat center center;
+  background-size: cover;
+  display: none;
+  z-index: 300;
+  color: white;
+  text-shadow: 2px 2px 4px black;
 }
