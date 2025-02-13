@@ -197,6 +197,12 @@ export class Game {
       this.socket.on("playerDisconnected", (playerId) => {
         delete this.remotePlayers[playerId];
       });
+      // Listener für "startGame" hinzufügen: Sobald der Server das Event sendet,
+      // wird der Lobby-Screen ausgeblendet und das Auswahlmenü angezeigt.
+      this.socket.on("startGame", () => {
+        document.getElementById("lobbyScreen").style.display = "none";
+        document.getElementById("selectionMenu").style.display = "flex";
+      });
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       // Zeige den Multiplayer-Wartebildschirm an
