@@ -329,11 +329,11 @@ canvas {
   background: url('/assets/images/multiplayerwaitscreen.png') no-repeat center center;
   background-size: cover;
   display: none;
-  z-index: 1000;
+  z-index: 1000;  /* Neu: Höherer z-index, damit der Wartebildschirm oben liegt */
   color: white;
   text-shadow: 2px 2px 4px black;
   /* Neue Flexbox-Regeln für zentrierten Inhalt */
-  display: flex;
+
   flex-direction: column;
   justify-content: center;
   align-items: center;
