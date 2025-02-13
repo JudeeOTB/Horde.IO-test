@@ -166,7 +166,7 @@ export class Game {
       }, 1000);
     });
 
-    // Hauptmenü – Singleplayer und Multiplayer
+    // Hauptmenü – Singleplayer
     document.getElementById("btn-singleplayer").addEventListener("click", () => {
       this.isMultiplayerMode = false;
       document.getElementById("mainMenu").style.display = "none";
@@ -174,6 +174,7 @@ export class Game {
       document.getElementById("selectionMenu").style.display = "flex";
     });
 
+    // Hauptmenü – Multiplayer
     document.getElementById("btn-multiplayer").addEventListener("click", () => {
       this.isMultiplayerMode = true;
       this.socket = io();
@@ -198,7 +199,8 @@ export class Game {
       });
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
-      document.getElementById("selectionMenu").style.display = "flex";
+      // Hier: Multiplayer-Wartebildschirm anzeigen statt Auswahlmenü
+      document.getElementById("lobbyScreen").style.display = "flex";
     });
 
     document.getElementById("btn-options").addEventListener("click", () => {
@@ -221,7 +223,7 @@ export class Game {
       setTimeout(() => { mainMenu.style.opacity = "1"; }, 10);
     });
 
-    // Auswahlmenü – Faction auswählen und Spiel starten
+    // Auswahlmenü – Faction auswählen und Spiel starten (für Singleplayer)
     document.querySelectorAll("#selectionMenu button").forEach(btn => {
       btn.addEventListener("click", () => {
         const selected = btn.getAttribute("data-faction");
