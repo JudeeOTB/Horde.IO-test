@@ -1,0 +1,19 @@
+# Abhängigkeiten (npm‑Module)
+node_modules/
+
+# Logdateien
+*.log
+**/server.log
+
+# Temporäre Backup-Dateien
+*.save
+
+# Falls vorhanden: Environment-Dateien, die sensible Informationen enthalten
+.env
+
+# PM2-Dump (falls du diesen im Projekt ablegst – oft ist er im Home-Verzeichnis)
+.dump.pm2
+
+# Falls du Build-Artefakte erzeugst (z. B. bei Webpack)
+dist/
+build/
