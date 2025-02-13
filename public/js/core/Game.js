@@ -199,20 +199,30 @@ export class Game {
       });
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
-      // Hier: Multiplayer-Wartebildschirm anzeigen statt Auswahlmenü
+      // Zeige den Multiplayer-Wartebildschirm an
       document.getElementById("lobbyScreen").style.display = "flex";
+      // Deaktiviere Canvas-Pointer-Events, damit Klicks den UI-Elementen zugehen
+      this.canvas.style.pointerEvents = "none";
     });
 
+    // Optionen-Menü
     document.getElementById("btn-options").addEventListener("click", () => {
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       document.getElementById("optionsMenu").style.display = "flex";
+      // Auch hier: Canvas-Pointer-Events deaktivieren, damit die Regler funktionieren
+      this.canvas.style.pointerEvents = "none";
     });
 
+    // Zurück aus dem Optionen-Menü
     document.getElementById("btn-back").addEventListener("click", () => {
       document.getElementById("optionsMenu").style.display = "none";
       document.getElementById("mainMenu").style.display = "flex";
-      setTimeout(() => { document.getElementById("mainMenu").style.opacity = "1"; }, 10);
+      setTimeout(() => { 
+        document.getElementById("mainMenu").style.opacity = "1";
+        // Reaktiviere Canvas-Pointer-Events
+        this.canvas.style.pointerEvents = "auto";
+      }, 10);
     });
 
     document.getElementById("mainMenuButton").addEventListener("click", () => {
