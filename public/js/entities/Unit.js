@@ -443,8 +443,8 @@ export class Unit extends Entity {
     }
   }
   
-  // draw() erwartet jetzt den Parameter "assets" und nutzt ihn für den Zugriff auf Sprites.
-  draw(ctx, cameraX, cameraY, slashImage, assets) {
+  // draw() erwartet jetzt den Parameter "assets" und zusätzlich "playerTeam" (die Team-ID des Spielers).
+  draw(ctx, cameraX, cameraY, slashImage, assets, playerTeam) {
     if (this.slashEffect) {
       ctx.save();
       ctx.globalAlpha = this.slashEffect.alpha;
@@ -472,24 +472,26 @@ export class Unit extends Entity {
       ctx.fillRect(this.x - cameraX, this.y - cameraY, this.width, this.height);
     }
     
-    // Zeichne den Lebensbalken oberhalb der Einheit:
-    // Für normale Units: Balken entspricht der Einheitengröße, für Könige etwas länger (1.1‑fach) und dicker (8px hoch)
+    // Zeichne den Lebensbalken oberhalb der Einheit.
+    // Für normale Units: Breite entspricht der Unit, für Könige etwas länger (1.1‑fach) und dicker (8px hoch).
     const baseBarWidth = this.width;
     let barWidth, barHeight;
     if (this.unitType === "king") {
-      barWidth = baseBarWidth * 1.1; // nur etwas länger als bei Vasallen
-      barHeight = 8;               // dickerer Balken
+      barWidth = baseBarWidth * 1.1;
+      barHeight = 8;
     } else {
       barWidth = baseBarWidth;
       barHeight = 5;
     }
-    // Korrigiere die x-Position, damit der Balken zentriert über dem Sprite liegt:
+    // Zentriere den Balken über dem Sprite:
     const barX = this.x - cameraX - (barWidth - this.width) / 2;
     const barY = this.y - cameraY - barHeight - 2;
     ctx.fillStyle = "black";
     ctx.fillRect(barX, barY, barWidth, barHeight);
     let maxHP = (this.unitType === "king") ? 300 : 100;
-    ctx.fillStyle = "green";
+    // Bestimme die Farbe: Verbündete (wenn this.team === playerTeam) erhalten einen "lime" (hellgrünen) Balken, Gegner "red"
+    const healthColor = (this.team === playerTeam) ? "lime" : "red";
+    ctx.fillStyle = healthColor;
     ctx.fillRect(barX, barY, barWidth * (this.hp / maxHP), barHeight);
     
     if (this.unitType === "archer") {
