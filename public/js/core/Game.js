@@ -19,9 +19,9 @@ export class Game {
     this.logicalWidth = window.innerWidth;
     this.logicalHeight = window.innerHeight;
 
-    // Spielzustand (lokale Objekte)
-    this.units = [];         // Enthält alle Einheiten (lokale und remote)
-    this.buildings = [];     // Gebäude, die in der Welt existieren
+    // Spielzustand
+    this.units = [];         // Alle Einheiten (lokal und remote)
+    this.buildings = [];     // Gebäude
     this.souls = [];
     this.obstacles = [];
     this.powerUps = [];
@@ -54,25 +54,24 @@ export class Game {
     this.lastKingY = 0;
     this.kingStationaryTime = 0;
 
-    // Multiplayer-spezifische Variablen
+    // Multiplayer
     this.isMultiplayerMode = false;
     this.socket = null;
-    // Remote Spieler werden zunächst in einem eigenen Objekt gesammelt.
-    this.remotePlayers = {};
+    this.remotePlayers = {}; // Remote-Spieler-Daten, synchronisiert über Socket
 
     // Joystick
     this.joystickVector = { x: 0, y: 0 };
 
     // Mobile-Erkennung
     this.isMobile = /Mobi|Android/i.test(navigator.userAgent);
-    // Kein Zoom – HUD und Spielwelt werden in Originalgröße gerendert
+    // Kein zusätzlicher Zoom – alles in Originalgröße
     this.gameZoom = 1.0;
     this.hudScale = 1.0;
 
     // Assets laden über den zentralen AssetManager
     AssetManager.loadAssets();
     this.assets = AssetManager.assets;
-    // Sicherstellen, dass der Slash-Sprite verfügbar ist:
+    // Sicherstellen, dass der Slash-Sprite vorhanden ist
     this.slashImage = this.assets.slash;
 
     // Initialisiere Submodule
@@ -97,6 +96,7 @@ export class Game {
 
     // Game Over – Neustart
     document.getElementById("restartButton").addEventListener("click", () => {
+      // Bei einem Restart wird der Multiplayer-Zustand (bzw. die lokale Version) zurückgesetzt
       this.initGame(this.playerFaction);
       this.gameOver = false;
       this.lastTime = performance.now();
@@ -104,7 +104,7 @@ export class Game {
     });
   }
 
-  // Nutzt devicePixelRatio und speichert die logische Größe
+  // Nutzt devicePixelRatio und setzt die logische Größe
   resizeCanvas() {
     const ratio = window.devicePixelRatio || 1;
     this.canvas.width = window.innerWidth * ratio;
@@ -150,6 +150,31 @@ export class Game {
         document.webkitExitFullscreen();
       }
     }
+  }
+
+  // Aktualisiert Remote-Spieler aus dem Socket (synchronisiert diese in this.units)
+  updateRemotePlayers() {
+    Object.keys(this.remotePlayers).forEach(id => {
+      const remoteData = this.remotePlayers[id];
+      let remoteUnit = this.units.find(u => u.isRemote && u.remoteId === id);
+      if (remoteUnit) {
+        remoteUnit.x = remoteData.x;
+        remoteUnit.y = remoteData.y;
+      } else {
+        // Erzeuge eine neue Remote-Einheit
+        remoteUnit = new Unit(remoteData.x, remoteData.y, remoteData.faction, "king");
+        remoteUnit.remoteId = id;
+        remoteUnit.isRemote = true;
+        this.units.push(remoteUnit);
+      }
+    });
+    // Entferne Einheiten, die nicht mehr existieren
+    this.units = this.units.filter(u => {
+      if (u.isRemote) {
+        return this.remotePlayers[u.remoteId] !== undefined;
+      }
+      return true;
+    });
   }
 
   // Menü-Events inklusive Multiplayer-Integration
@@ -200,11 +225,19 @@ export class Game {
       this.socket.on("playerDisconnected", (playerId) => {
         delete this.remotePlayers[playerId];
       });
-      // Listener für "startGame": Sobald der Server das Event sendet,
-      // wird der Lobby-Screen ausgeblendet und das Auswahlmenü angezeigt.
+      // Listener für "startGame": Der Server sendet dieses Event, wenn alle Spieler bereit sind.
       this.socket.on("startGame", () => {
+        // Blende den Lobby-Screen aus und starte das Spiel
         document.getElementById("lobbyScreen").style.display = "none";
-        document.getElementById("selectionMenu").style.display = "flex";
+        // Initiiere den Spielstart nur einmal – jetzt, wenn der Server den Start freigibt
+        this.initGame(this.playerFaction);
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen();
+        } else if (document.documentElement.webkitRequestFullscreen) {
+          document.documentElement.webkitRequestFullscreen();
+        }
+        this.lastTime = performance.now();
+        requestAnimationFrame((ts) => this.gameLoop(ts));
       });
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
@@ -212,7 +245,7 @@ export class Game {
       document.getElementById("lobbyScreen").style.display = "flex";
       // Sende das "lobbyReady"-Event an den Server
       this.socket.emit("lobbyReady");
-      // Deaktiviere Canvas-Pointer-Events, damit UI-Klicks richtig ankommen
+      // Deaktiviere Canvas-Pointer-Events, damit UI-Klicks korrekt ankommen
       this.canvas.style.pointerEvents = "none";
     });
 
@@ -242,56 +275,33 @@ export class Game {
       setTimeout(() => { mainMenu.style.opacity = "1"; }, 10);
     });
 
-    // Auswahlmenü – Faction auswählen und Spiel starten (für Single- und Multiplayer)
+    // Auswahlmenü – Faction auswählen und Spiel starten
     document.querySelectorAll("#selectionMenu button").forEach(btn => {
       btn.addEventListener("click", () => {
         const selected = btn.getAttribute("data-faction");
         document.getElementById("selectionMenu").style.display = "none";
         document.getElementById("gameUI").style.display = "none";
         this.playerFaction = selected;
-        this.initGame(selected);
-        if (document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen();
-        } else if (document.documentElement.webkitRequestFullscreen) {
-          document.documentElement.webkitRequestFullscreen();
+        if (this.isMultiplayerMode && this.socket) {
+          // Im Multiplayer: Sende die Auswahl an den Server, aber starte das Spiel nicht sofort.
+          this.socket.emit("characterSelected", { faction: selected });
+          // Der Server koordiniert den Start und sendet später "startGame".
+        } else {
+          // Im Singleplayer wird sofort gestartet.
+          this.initGame(selected);
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+          } else if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+          }
+          this.lastTime = performance.now();
+          requestAnimationFrame((ts) => this.gameLoop(ts));
         }
-        this.lastTime = performance.now();
-        requestAnimationFrame((ts) => this.gameLoop(ts));
       });
     });
   }
 
-  // Neue Methode zur Synchronisation von Remote-Spielern
-  updateRemotePlayers() {
-    // Iteriere über alle remotePlayers, die vom Server empfangen wurden,
-    // und synchronisiere sie mit den in this.units vorhandenen Remote-Objekten.
-    Object.keys(this.remotePlayers).forEach(id => {
-      const remoteData = this.remotePlayers[id];
-      // Suche nach einer vorhandenen Remote-Einheit mit diesem Remote-ID
-      let remoteUnit = this.units.find(u => u.remoteId === id);
-      if (remoteUnit) {
-        // Aktualisiere Position und Status
-        remoteUnit.x = remoteData.x;
-        remoteUnit.y = remoteData.y;
-      } else {
-        // Erstelle eine neue Remote-Einheit, falls nicht vorhanden
-        // Hier gehen wir davon aus, dass remoteData auch die Fraktionsinformation enthält
-        remoteUnit = new Unit(remoteData.x, remoteData.y, remoteData.faction, "king");
-        remoteUnit.remoteId = id;
-        remoteUnit.isRemote = true;
-        this.units.push(remoteUnit);
-      }
-    });
-    // Entferne Remote-Einheiten, die nicht mehr existieren
-    this.units = this.units.filter(u => {
-      if (u.isRemote) {
-        return this.remotePlayers[u.remoteId] !== undefined;
-      }
-      return true;
-    });
-  }
-
-  // initGame: Initialisierung des Spielzustands
+  // initGame: Initialisierung des Spielzustands (unabhängig vom Modus)
   initGame(selectedFaction) {
     // Setze den Spielzustand zurück
     this.units = [];
@@ -313,7 +323,7 @@ export class Game {
     this.safeZoneTarget = { centerX: CONFIG.worldWidth / 2, centerY: CONFIG.worldHeight / 2, radius: 7000 };
 
     if (!this.isMultiplayerMode) {
-      // Singleplayer: Generiere alle Könige, Vassalen, Gebäude etc.
+      // Singleplayer: Generiere komplette Welt (Spieler, KI, Gebäude etc.)
       const totalKings = 11;
       const margin = 200;
       const L1 = CONFIG.worldWidth - 2 * margin;
@@ -343,26 +353,25 @@ export class Game {
         for (let j = 0; j < 10; j++) { this.units.push(Utils.spawnVassal(aiKing)); }
       }
     } else {
-      // Multiplayer: Nur den lokalen Spieler erzeugen und über Socket informieren.
-      // Hinweis: Für eine konsistente Welt sollte der Server einen gemeinsamen Seed an alle Clients verteilen.
+      // Multiplayer: Erzeuge nur den lokalen Spieler. Statische Objekte (Buildings, Obstacles) sollten synchron erzeugt werden.
       this.playerKing = new Unit(CONFIG.worldWidth / 2, CONFIG.worldHeight / 2, selectedFaction, "king");
       this.playerKing.isLocal = true;
       this.units.push(this.playerKing);
       for (let i = 0; i < 10; i++) { this.units.push(Utils.spawnVassal(this.playerKing)); }
       this.socket.emit("playerJoined", { x: this.playerKing.x, y: this.playerKing.y, faction: selectedFaction });
     }
-    // Beide Modi: Generiere statische Objekte (Buildings, Obstacles) idealerweise auf Basis eines gemeinsamen Seeds.
+    // Beide Modi: Generiere statische Weltobjekte. Ein gemeinsamer Seed vom Server wäre hier ideal.
     Utils.generateObstacles(this);
     Utils.generateBuildingClusters(this);
   }
 
-  // Update-Methode: Hier wird der Spielzustand fortlaufend aktualisiert.
+  // Update: Aktualisiert den Spielzustand in jedem Frame
   update(deltaTime) {
     if (this.gameOver) return;
     this.updateTime(deltaTime);
     this.gameTime += deltaTime;
 
-    // Aktualisiere Position und Bewegungen des lokalen Spielers
+    // Aktualisiere Bewegungen des lokalen Spielers
     if (this.playerKing) {
       let dxKing = this.playerKing.x - this.lastKingX;
       let dyKing = this.playerKing.y - this.lastKingY;
@@ -384,7 +393,7 @@ export class Game {
       }
     }
 
-    // Im Multiplayer-Modus: Synchronisiere Remote-Spieler in den zentralen Einheiten-Array
+    // Im Multiplayer: Synchronisiere Remote-Spieler
     if (this.isMultiplayerMode) {
       this.updateRemotePlayers();
     }
@@ -394,7 +403,7 @@ export class Game {
     this.projectiles.forEach(proj => proj.update(deltaTime));
     this.projectiles = this.projectiles.filter(proj => !proj.expired);
 
-    // Kollisionen und andere Spielmechaniken
+    // Kollisionsabfragen und andere Spielmechaniken
     Utils.resolveUnitUnitCollisions(this);
     Utils.resolveUnitBuildingCollisions(this);
     Utils.resolveUnitObstacleCollisions(this);
@@ -406,12 +415,11 @@ export class Game {
     Utils.resolveUnitCollisions(this);
     Utils.applySeparationForce(this, deltaTime);
     
-    // Sieg-/Verlier-Bedingungen
+    // Sieg-/Verlier-Bedingungen:
     if (!this.playerKing || this.playerKing.hp <= 0) {
       this.gameOver = true;
       Utils.showGameOverMenu("Verloren");
     } else if (!this.isMultiplayerMode) {
-      // Im Singleplayer: Wenn keine feindlichen Könige existieren, ist das Spiel gewonnen.
       let enemyKings = this.units.filter(u => u.unitType === "king" && u !== this.playerKing);
       if (enemyKings.length === 0) {
         this.gameOver = true;
