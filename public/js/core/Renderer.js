@@ -14,7 +14,6 @@ export class Renderer {
     // Leere den Canvas anhand der logischen (CSS‑)Größe
     ctx.clearRect(0, 0, game.logicalWidth, game.logicalHeight);
 
-    // Zeichne den Spielinhalt (Welt)
     if (game.isMobile) {
       ctx.save();
       // Weltzeichnung – es wird der gameZoom-Faktor angewendet (jetzt 1.0)
@@ -41,7 +40,14 @@ export class Renderer {
       game.units.forEach(u =>
         u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets)
       );
+      
+      // Zeichne zuerst die Gesundheitsbalken für alle Nicht‑Könige
+      this.drawNonKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+      // Zeichne die Safe Zone
       this.drawSafeZone();
+      // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
+      this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+
       ctx.restore();
       this.drawMinimap();
     } else {
@@ -68,7 +74,14 @@ export class Renderer {
       game.units.forEach(u =>
         u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets)
       );
+
+      // Zeichne zuerst die Gesundheitsbalken für alle Nicht‑Könige
+      this.drawNonKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+      // Zeichne die Safe Zone
       this.drawSafeZone();
+      // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
+      this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+
       this.drawMinimap();
     }
     this.drawHUD();
@@ -146,7 +159,6 @@ export class Renderer {
     const ctx = this.ctx;
     const game = this.game;
     const r = window.devicePixelRatio || 1;
-    // Verwende die logische Breite (CSS-Pixel) für die Positionierung
     const cw = game.logicalWidth;
     const margin = 10;
     const minimapWidth = 200;
@@ -156,7 +168,6 @@ export class Renderer {
     let scale = minimapWidth / CONFIG.worldWidth;
     ctx.save();
     ctx.resetTransform();
-    // Um HUD-Elemente in CSS-Koordinaten zu zeichnen, wende den devicePixelRatio-Faktor an
     ctx.scale(r, r);
     ctx.fillStyle = "#225522";
     ctx.fillRect(minimapX, minimapY, minimapWidth, minimapHeight);
@@ -221,16 +232,50 @@ export class Renderer {
     ctx.restore();
   }
 
+  // Neue Methode: Zeichnet den Gesundheitsbalken für eine einzelne Einheit.
+  drawHealthBarForUnit(u, ctx, cameraX, cameraY, isKing = false) {
+    const baseBarWidth = 40;
+    const barHeight = 6;
+    const barWidth = isKing ? baseBarWidth * 1.5 : baseBarWidth;
+    // Nutze u.spriteHeight als Höhe des Sprites (Default: 40)
+    const spriteHeight = u.spriteHeight || 40;
+    const x = u.x - cameraX - barWidth / 2;
+    const y = u.y - cameraY - spriteHeight / 2 - 10; // 10 Pixel Abstand oberhalb
+    // Hintergrund des Balkens (grau)
+    ctx.fillStyle = "gray";
+    ctx.fillRect(x, y, barWidth, barHeight);
+    // Fülle den Balken in grün, entsprechend dem Verhältnis von health zu maxHealth
+    const healthRatio = u.health / u.maxHealth;
+    ctx.fillStyle = "green";
+    ctx.fillRect(x, y, barWidth * healthRatio, barHeight);
+  }
+
+  // Neue Methode: Zeichnet Gesundheitsbalken für alle Nicht‑König-Einheiten.
+  drawNonKingHealthBars(game, ctx, cameraX, cameraY) {
+    game.units.forEach(u => {
+      if (u.unitType !== "king" && u.health !== undefined && u.maxHealth) {
+        this.drawHealthBarForUnit(u, ctx, cameraX, cameraY, false);
+      }
+    });
+  }
+
+  // Neue Methode: Zeichnet Gesundheitsbalken für alle König-Einheiten (später gezeichnet, damit im Vordergrund).
+  drawKingHealthBars(game, ctx, cameraX, cameraY) {
+    game.units.forEach(u => {
+      if (u.unitType === "king" && u.health !== undefined && u.maxHealth) {
+        this.drawHealthBarForUnit(u, ctx, cameraX, cameraY, true);
+      }
+    });
+  }
+
   drawHUD() {
     const ctx = this.ctx;
     const game = this.game;
     if (!game.playerKing) return;
     const r = window.devicePixelRatio || 1;
-    // Verwende die logische Größe (CSS-Pixel) für HUD-Zeichnung
     const cw = game.logicalWidth;
     const ch = game.logicalHeight;
     ctx.save();
-    // Setze Transformationsmatrix zurück und wende devicePixelRatio an, um in CSS-Koordinaten zu arbeiten
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(r, r);
     
