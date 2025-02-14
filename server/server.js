@@ -1,4 +1,3 @@
-// server/server.js
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -7,8 +6,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server);
 
-// Statische Kartendaten – hier ein Beispiel. In einer echten Applikation
-// würden diese vermutlich dynamisch generiert oder aus einer Datenbank geladen.
+// Beispielhafte Map-Daten – in einer realen Anwendung aus Datenbank oder dynamischer Generierung
 function generateMap() {
   return {
     buildings: [
@@ -31,32 +29,44 @@ io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
   
   socket.on('playerJoined', (data) => {
-    // Spieler in den globalen Zustand aufnehmen (mit Standardwerten)
+    // Aufnahme des Spielers im globalen Zustand
     gameState.players[socket.id] = {
       id: socket.id,
       x: data.x,
       y: data.y,
       faction: data.faction,
-      hp: 100
-      // Weitere Eigenschaften, z. B. für Animation, Score etc.
+      hp: 100,
+      ready: false // Noch nicht bereit, bis der Charakter ausgewählt wurde
     };
-    // Sende dem neuen Spieler den aktuellen globalen Zustand
+    // Sende dem neuen Spieler den aktuellen Zustand
     socket.emit('stateUpdate', gameState);
     // Informiere alle anderen über den neuen Spieler
     socket.broadcast.emit('newPlayer', gameState.players[socket.id]);
+  });
+  
+  socket.on('characterSelected', (data) => {
+    if (gameState.players[socket.id]) {
+      gameState.players[socket.id].faction = data.faction;
+      // Markiere den Spieler als bereit
+      gameState.players[socket.id].ready = true;
+      console.log(`Player ${socket.id} hat ${data.faction} ausgewählt und ist bereit.`);
+    }
+  });
+  
+  socket.on('lobbyReady', () => {
+    console.log(`Player ${socket.id} signalisiert Lobby-Bereitschaft.`);
+    // Prüfe, ob mindestens 2 Spieler verbunden sind und alle bereit sind
+    let allReady = Object.values(gameState.players).every(player => player.ready);
+    if (Object.keys(gameState.players).length >= 2 && allReady) {
+      console.log("Alle Spieler sind bereit. Starte das Spiel.");
+      io.emit('startGame');
+    }
   });
   
   socket.on('playerMoved', (data) => {
     if(gameState.players[socket.id]){
       gameState.players[socket.id].x = data.x;
       gameState.players[socket.id].y = data.y;
-    }
-  });
-  
-  socket.on('lobbyReady', () => {
-    // Sobald mindestens 2 Spieler im Spiel sind, starte das Match
-    if(Object.keys(gameState.players).length >= 2){
-      io.emit('startGame');
     }
   });
   
@@ -67,7 +77,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Sende 10 mal pro Sekunde den aktuellen Zustand an alle Clients
+// Sende 10-mal pro Sekunde den aktuellen Zustand an alle Clients
 setInterval(() => {
   io.emit('stateUpdate', gameState);
 }, 100);
