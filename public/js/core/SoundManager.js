@@ -5,7 +5,7 @@ export class SoundManager {
     this.bgMusic = document.getElementById("bgMusic");
     if (this.bgMusic) {
       // Setze die initiale Lautstärke (default 1.0, also 100%)
-      this.bgMusic.volume = 1;
+      this.bgMusic.volume = 0.5;
       this.initVolumeSlider();
     }
   }
