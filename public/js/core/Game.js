@@ -94,7 +94,6 @@ export class Game {
 
     // Game Over – Neustart
     document.getElementById("restartButton").addEventListener("click", () => {
-      // Bei Restart wird der Multiplayer-Zustand zurückgesetzt
       this.initGame(this.playerFaction);
       this.gameOver = false;
       this.lastTime = performance.now();
@@ -102,7 +101,6 @@ export class Game {
     });
   }
 
-  // Nutzt devicePixelRatio und speichert logische Größe
   resizeCanvas() {
     const ratio = window.devicePixelRatio || 1;
     this.canvas.width = window.innerWidth * ratio;
@@ -150,7 +148,6 @@ export class Game {
     }
   }
 
-  // Synchronisiert Remote-Spieler in this.units
   updateRemotePlayers() {
     Object.keys(this.remotePlayers).forEach(id => {
       const remoteData = this.remotePlayers[id];
@@ -159,14 +156,12 @@ export class Game {
         remoteUnit.x = remoteData.x;
         remoteUnit.y = remoteData.y;
       } else {
-        // Erzeuge neue Remote-Einheit
         remoteUnit = new Unit(remoteData.x, remoteData.y, remoteData.faction, "king");
         remoteUnit.remoteId = id;
         remoteUnit.isRemote = true;
         this.units.push(remoteUnit);
       }
     });
-    // Entferne Einheiten, die nicht mehr existieren
     this.units = this.units.filter(u => {
       if (u.isRemote) {
         return this.remotePlayers[u.remoteId] !== undefined;
@@ -175,7 +170,6 @@ export class Game {
     });
   }
 
-  // Menü-Events inkl. Multiplayer-Integration
   setupMenuEvents() {
     // Titelbildschirm
     const bgMusic = document.getElementById("bgMusic");
@@ -223,10 +217,15 @@ export class Game {
       this.socket.on("playerDisconnected", (playerId) => {
         delete this.remotePlayers[playerId];
       });
-      // Listener für "startGame": Der Server gibt den Start frei, wenn alle Spieler bereit sind.
-      this.socket.on("startGame", () => {
+      // Warten: Der Server schickt "showCharacterSelection", wenn mindestens 2 Spieler im Multiplayer sind.
+      this.socket.on("showCharacterSelection", () => {
+        // Wartebildschirm ausblenden, Charakterauswahl anzeigen
         document.getElementById("lobbyScreen").style.display = "none";
-        // Starte den Spielzustand synchron – initGame wird hier aufgerufen.
+        document.getElementById("selectionMenu").style.display = "flex";
+      });
+      // "startGame": Wird später gesendet, wenn alle Spieler bereit sind.
+      this.socket.on("startGame", () => {
+        // Starte den Spielzustand
         this.initGame(this.playerFaction);
         if (document.documentElement.requestFullscreen) {
           document.documentElement.requestFullscreen();
@@ -238,9 +237,9 @@ export class Game {
       });
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
-      // Zeige den Multiplayer-Wartebildschirm an
+      // Zeige den Wartebildschirm an
       document.getElementById("lobbyScreen").style.display = "flex";
-      // Im Multiplayer senden wir hier noch NICHT "lobbyReady", bis der Spieler seine Auswahl trifft.
+      // Sende NICHT sofort "lobbyReady" – wir warten auf die Charakterauswahl!
       this.canvas.style.pointerEvents = "none";
     });
 
@@ -270,7 +269,8 @@ export class Game {
       setTimeout(() => { mainMenu.style.opacity = "1"; }, 10);
     });
 
-    // Auswahlmenü – Faction auswählen und Spiel starten
+    // In der Charakterauswahl: Sobald ein Spieler einen Charakter auswählt,
+    // sendet der Client "characterSelected" und dann "lobbyReady".
     document.querySelectorAll("#selectionMenu button").forEach(btn => {
       btn.addEventListener("click", () => {
         const selected = btn.getAttribute("data-faction");
@@ -278,13 +278,10 @@ export class Game {
         document.getElementById("gameUI").style.display = "none";
         this.playerFaction = selected;
         if (this.isMultiplayerMode && this.socket) {
-          // Im Multiplayer: Sende zuerst die Charakterauswahl
           this.socket.emit("characterSelected", { faction: selected });
-          // Dann signalisiert der Client seine Bereitschaft
           this.socket.emit("lobbyReady");
-          // Warten auf "startGame" vom Server – initGame() wird erst dann aufgerufen.
+          // Warten auf "startGame" vom Server.
         } else {
-          // Singleplayer: Starte sofort
           this.initGame(selected);
           if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen();
@@ -298,9 +295,7 @@ export class Game {
     });
   }
 
-  // initGame: Initialisiert den Spielzustand (für Single- und Multiplayer)
   initGame(selectedFaction) {
-    // Setze den Spielzustand zurück
     this.units = [];
     this.buildings = [];
     this.souls = [];
@@ -362,13 +357,11 @@ export class Game {
     Utils.generateBuildingClusters(this);
   }
 
-  // Update: Aktualisiert den Spielzustand in jedem Frame
   update(deltaTime) {
     if (this.gameOver) return;
     this.updateTime(deltaTime);
     this.gameTime += deltaTime;
 
-    // Aktualisiere Bewegungen des lokalen Spielers
     if (this.playerKing) {
       let dxKing = this.playerKing.x - this.lastKingX;
       let dyKing = this.playerKing.y - this.lastKingY;
@@ -390,17 +383,14 @@ export class Game {
       }
     }
 
-    // Im Multiplayer: Synchronisiere Remote-Spieler
     if (this.isMultiplayerMode) {
       this.updateRemotePlayers();
     }
 
-    // Aktualisiere alle Einheiten und Projektile
     this.units.forEach(unit => unit.update(deltaTime, this));
     this.projectiles.forEach(proj => proj.update(deltaTime));
     this.projectiles = this.projectiles.filter(proj => !proj.expired);
 
-    // Kollisionsprüfungen und weitere Mechaniken
     Utils.resolveUnitUnitCollisions(this);
     Utils.resolveUnitBuildingCollisions(this);
     Utils.resolveUnitObstacleCollisions(this);
@@ -412,7 +402,6 @@ export class Game {
     Utils.resolveUnitCollisions(this);
     Utils.applySeparationForce(this, deltaTime);
     
-    // Sieg-/Verlier-Bedingungen:
     if (!this.playerKing || this.playerKing.hp <= 0) {
       this.gameOver = true;
       Utils.showGameOverMenu("Verloren");
@@ -424,7 +413,6 @@ export class Game {
       }
     }
     
-    // Sende lokale Bewegungsdaten an den Server im Multiplayer
     if (this.isMultiplayerMode && this.socket && this.playerKing) {
       this.socket.emit("playerMoved", { x: this.playerKing.x, y: this.playerKing.y });
     }
