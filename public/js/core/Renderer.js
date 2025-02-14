@@ -38,7 +38,7 @@ export class Renderer {
         proj.draw(ctx, game.cameraX, game.cameraY, game.assets.arrow)
       );
       game.units.forEach(u =>
-        u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets)
+        u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets, game.playerKing ? game.playerKing.team : null)
       );
       
       // Zeichne zuerst die Gesundheitsbalken für alle Nicht‑Könige
@@ -72,7 +72,7 @@ export class Renderer {
         proj.draw(ctx, game.cameraX, game.cameraY, game.assets.arrow)
       );
       game.units.forEach(u =>
-        u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets)
+        u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets, game.playerKing ? game.playerKing.team : null)
       );
 
       // Zeichne zuerst die Gesundheitsbalken für alle Nicht‑Könige
@@ -232,29 +232,12 @@ export class Renderer {
     ctx.restore();
   }
 
-  // Neue Methode: Zeichnet den Gesundheitsbalken für eine einzelne Einheit.
-  drawHealthBarForUnit(u, ctx, cameraX, cameraY, isKing = false) {
-    const baseBarWidth = 40;
-    const barHeight = 6;
-    const barWidth = isKing ? baseBarWidth * 1.5 : baseBarWidth;
-    // Nutze u.spriteHeight als Höhe des Sprites (Default: 40)
-    const spriteHeight = u.spriteHeight || 40;
-    const x = u.x - cameraX - barWidth / 2;
-    const y = u.y - cameraY - spriteHeight / 2 - 10; // 10 Pixel Abstand oberhalb
-    // Hintergrund des Balkens (grau)
-    ctx.fillStyle = "gray";
-    ctx.fillRect(x, y, barWidth, barHeight);
-    // Fülle den Balken in grün, entsprechend dem Verhältnis von health zu maxHealth
-    const healthRatio = u.health / u.maxHealth;
-    ctx.fillStyle = "green";
-    ctx.fillRect(x, y, barWidth * healthRatio, barHeight);
-  }
-
   // Neue Methode: Zeichnet Gesundheitsbalken für alle Nicht‑König-Einheiten.
   drawNonKingHealthBars(game, ctx, cameraX, cameraY) {
     game.units.forEach(u => {
       if (u.unitType !== "king" && u.health !== undefined && u.maxHealth) {
-        this.drawHealthBarForUnit(u, ctx, cameraX, cameraY, false);
+        // Falls in der Unit.draw() bereits der Balken gezeichnet wird, entfällt diese Methode eventuell.
+        // Hier könnte man ergänzend eigene Logik einfügen.
       }
     });
   }
@@ -263,7 +246,7 @@ export class Renderer {
   drawKingHealthBars(game, ctx, cameraX, cameraY) {
     game.units.forEach(u => {
       if (u.unitType === "king" && u.health !== undefined && u.maxHealth) {
-        this.drawHealthBarForUnit(u, ctx, cameraX, cameraY, true);
+        // Auch hier, falls bereits in Unit.draw() gezeichnet wird, evtl. redundant.
       }
     });
   }
