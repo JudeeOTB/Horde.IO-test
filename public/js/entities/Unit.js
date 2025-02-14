@@ -483,7 +483,7 @@ export class Unit extends Entity {
       barWidth = baseBarWidth;
       barHeight = 5;
     }
-    // Korrigiere die x-Position, damit der Balken zentriert ueber dem Sprite liegt:
+    // Korrigiere die x-Position, damit der Balken zentriert über dem Sprite liegt:
     const barX = this.x - cameraX - (barWidth - this.width) / 2;
     const barY = this.y - cameraY - barHeight - 2;
     ctx.fillStyle = "black";

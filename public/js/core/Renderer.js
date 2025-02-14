@@ -336,7 +336,7 @@ export class Renderer {
     ctx.textAlign = "left";
     ctx.fillText("FPS: " + game.fps, 10, ch - 10);
     
-    // Timer (mittig und oben)
+    // Timer (mittig oben)
     let totalSeconds = Math.floor(game.gameTime / 1000);
     let minutes = Math.floor(totalSeconds / 60);
     let seconds = totalSeconds % 60;
