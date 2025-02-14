@@ -1,5 +1,3 @@
-// public/js/core/Game.js
-
 import { CONFIG } from "./config.js";
 import { Unit } from "../entities/Unit.js";
 import * as Utils from "../utils/utils.js";
@@ -227,9 +225,8 @@ export class Game {
       });
       // Listener für "startGame": Der Server gibt den Start frei, wenn alle Spieler bereit sind.
       this.socket.on("startGame", () => {
-        // Blende den Lobby-Screen aus und starte das Spiel.
         document.getElementById("lobbyScreen").style.display = "none";
-        // Hier wird initGame erst ausgeführt, wenn der Server den Start freigibt.
+        // Starte den Spielzustand synchron – initGame wird hier aufgerufen.
         this.initGame(this.playerFaction);
         if (document.documentElement.requestFullscreen) {
           document.documentElement.requestFullscreen();
@@ -243,9 +240,7 @@ export class Game {
       document.getElementById("mainMenu").style.opacity = "0";
       // Zeige den Multiplayer-Wartebildschirm an
       document.getElementById("lobbyScreen").style.display = "flex";
-      // WICHTIG: NICHT mehr sofort "lobbyReady" senden – wir warten auf die Charakterauswahl!
-      // this.socket.emit("lobbyReady");
-      // Deaktiviere Canvas-Pointer-Events, damit UI-Klicks korrekt ankommen
+      // Im Multiplayer senden wir hier noch NICHT "lobbyReady", bis der Spieler seine Auswahl trifft.
       this.canvas.style.pointerEvents = "none";
     });
 
@@ -285,9 +280,9 @@ export class Game {
         if (this.isMultiplayerMode && this.socket) {
           // Im Multiplayer: Sende zuerst die Charakterauswahl
           this.socket.emit("characterSelected", { faction: selected });
-          // Jetzt sendet der Client "lobbyReady", um seine Bereitschaft zu signalisieren.
+          // Dann signalisiert der Client seine Bereitschaft
           this.socket.emit("lobbyReady");
-          // Wichtig: InitGame() wird NICHT sofort aufgerufen – der Start erfolgt, wenn der Server "startGame" sendet.
+          // Warten auf "startGame" vom Server – initGame() wird erst dann aufgerufen.
         } else {
           // Singleplayer: Starte sofort
           this.initGame(selected);
@@ -303,7 +298,7 @@ export class Game {
     });
   }
 
-  // initGame: Initialisiert den Spielzustand (sowohl Single- als auch Multiplayer)
+  // initGame: Initialisiert den Spielzustand (für Single- und Multiplayer)
   initGame(selectedFaction) {
     // Setze den Spielzustand zurück
     this.units = [];
@@ -325,7 +320,7 @@ export class Game {
     this.safeZoneTarget = { centerX: CONFIG.worldWidth / 2, centerY: CONFIG.worldHeight / 2, radius: 7000 };
 
     if (!this.isMultiplayerMode) {
-      // Singleplayer: Erzeuge komplette Welt (lokale Spieler, KI, Gebäude, etc.)
+      // Singleplayer: Erzeuge komplette Welt (Spieler, KI, Gebäude, etc.)
       const totalKings = 11;
       const margin = 200;
       const L1 = CONFIG.worldWidth - 2 * margin;
