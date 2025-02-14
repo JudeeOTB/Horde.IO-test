@@ -472,13 +472,25 @@ export class Unit extends Entity {
       ctx.fillRect(this.x - cameraX, this.y - cameraY, this.width, this.height);
     }
     
-    let barWidth = this.width, barHeight = 5;
+    // Zeichne den Lebensbalken oberhalb der Einheit:
+    // Für normale Units: Balken entspricht der Einheitengröße, für Könige etwas länger (1.1‑fach) und dicker (8px hoch)
+    const baseBarWidth = this.width;
+    let barWidth, barHeight;
+    if (this.unitType === "king") {
+      barWidth = baseBarWidth * 1.1; // nur etwas länger als bei Vasallen
+      barHeight = 8;               // dickerer Balken
+    } else {
+      barWidth = baseBarWidth;
+      barHeight = 5;
+    }
+    // Korrigiere die x-Position, damit der Balken zentriert über dem Sprite liegt:
+    const barX = this.x - cameraX - (barWidth - this.width) / 2;
+    const barY = this.y - cameraY - barHeight - 2;
     ctx.fillStyle = "black";
-    ctx.fillRect(this.x - cameraX, this.y - cameraY - barHeight - 2, barWidth, barHeight);
+    ctx.fillRect(barX, barY, barWidth, barHeight);
     let maxHP = (this.unitType === "king") ? 300 : 100;
-    let healthColor = (this.team === (this.playerTeam || 0)) ? "lime" : "red";
-    ctx.fillStyle = healthColor;
-    ctx.fillRect(this.x - cameraX, this.y - cameraY - barHeight - 2, barWidth * (this.hp / maxHP), barHeight);
+    ctx.fillStyle = "green";
+    ctx.fillRect(barX, barY, barWidth * (this.hp / maxHP), barHeight);
     
     if (this.unitType === "archer") {
       ctx.strokeStyle = "gold";
