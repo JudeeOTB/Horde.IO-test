@@ -64,11 +64,11 @@ export class Game {
 
     // Mobile-Erkennung
     this.isMobile = /Mobi|Android/i.test(navigator.userAgent);
-    // Kein zusätzlicher Zoom – alles in Originalgröße
+    // Kein zusätzlicher Zoom – Originalgröße
     this.gameZoom = 1.0;
     this.hudScale = 1.0;
 
-    // Assets laden über den zentralen AssetManager
+    // Assets laden
     AssetManager.loadAssets();
     this.assets = AssetManager.assets;
     // Sicherstellen, dass der Slash-Sprite vorhanden ist
@@ -79,7 +79,7 @@ export class Game {
     this.soundManager = new SoundManager();
     this.renderer = new Renderer(this);
 
-    // Fenster-Events (Resize und Orientationchange)
+    // Fenster-Events (Resize, Orientationchange)
     window.addEventListener("resize", () => {
       this.resizeCanvas();
       this.resizeTouchControls();
@@ -96,7 +96,7 @@ export class Game {
 
     // Game Over – Neustart
     document.getElementById("restartButton").addEventListener("click", () => {
-      // Bei einem Restart wird der Multiplayer-Zustand (bzw. die lokale Version) zurückgesetzt
+      // Bei Restart wird der Multiplayer-Zustand zurückgesetzt
       this.initGame(this.playerFaction);
       this.gameOver = false;
       this.lastTime = performance.now();
@@ -104,7 +104,7 @@ export class Game {
     });
   }
 
-  // Nutzt devicePixelRatio und setzt die logische Größe
+  // Nutzt devicePixelRatio und speichert logische Größe
   resizeCanvas() {
     const ratio = window.devicePixelRatio || 1;
     this.canvas.width = window.innerWidth * ratio;
@@ -152,7 +152,7 @@ export class Game {
     }
   }
 
-  // Aktualisiert Remote-Spieler aus dem Socket (synchronisiert diese in this.units)
+  // Synchronisiert Remote-Spieler in this.units
   updateRemotePlayers() {
     Object.keys(this.remotePlayers).forEach(id => {
       const remoteData = this.remotePlayers[id];
@@ -161,7 +161,7 @@ export class Game {
         remoteUnit.x = remoteData.x;
         remoteUnit.y = remoteData.y;
       } else {
-        // Erzeuge eine neue Remote-Einheit
+        // Erzeuge neue Remote-Einheit
         remoteUnit = new Unit(remoteData.x, remoteData.y, remoteData.faction, "king");
         remoteUnit.remoteId = id;
         remoteUnit.isRemote = true;
@@ -177,7 +177,7 @@ export class Game {
     });
   }
 
-  // Menü-Events inklusive Multiplayer-Integration
+  // Menü-Events inkl. Multiplayer-Integration
   setupMenuEvents() {
     // Titelbildschirm
     const bgMusic = document.getElementById("bgMusic");
@@ -225,11 +225,11 @@ export class Game {
       this.socket.on("playerDisconnected", (playerId) => {
         delete this.remotePlayers[playerId];
       });
-      // Listener für "startGame": Der Server sendet dieses Event, wenn alle Spieler bereit sind.
+      // Listener für "startGame": Der Server gibt den Start frei, wenn alle Spieler bereit sind.
       this.socket.on("startGame", () => {
-        // Blende den Lobby-Screen aus und starte das Spiel
+        // Blende den Lobby-Screen aus und starte das Spiel.
         document.getElementById("lobbyScreen").style.display = "none";
-        // Initiiere den Spielstart nur einmal – jetzt, wenn der Server den Start freigibt
+        // Hier wird initGame erst ausgeführt, wenn der Server den Start freigibt.
         this.initGame(this.playerFaction);
         if (document.documentElement.requestFullscreen) {
           document.documentElement.requestFullscreen();
@@ -243,8 +243,8 @@ export class Game {
       document.getElementById("mainMenu").style.opacity = "0";
       // Zeige den Multiplayer-Wartebildschirm an
       document.getElementById("lobbyScreen").style.display = "flex";
-      // Sende das "lobbyReady"-Event an den Server
-      this.socket.emit("lobbyReady");
+      // WICHTIG: NICHT mehr sofort "lobbyReady" senden – wir warten auf die Charakterauswahl!
+      // this.socket.emit("lobbyReady");
       // Deaktiviere Canvas-Pointer-Events, damit UI-Klicks korrekt ankommen
       this.canvas.style.pointerEvents = "none";
     });
@@ -283,11 +283,13 @@ export class Game {
         document.getElementById("gameUI").style.display = "none";
         this.playerFaction = selected;
         if (this.isMultiplayerMode && this.socket) {
-          // Im Multiplayer: Sende die Auswahl an den Server, aber starte das Spiel nicht sofort.
+          // Im Multiplayer: Sende zuerst die Charakterauswahl
           this.socket.emit("characterSelected", { faction: selected });
-          // Der Server koordiniert den Start und sendet später "startGame".
+          // Jetzt sendet der Client "lobbyReady", um seine Bereitschaft zu signalisieren.
+          this.socket.emit("lobbyReady");
+          // Wichtig: InitGame() wird NICHT sofort aufgerufen – der Start erfolgt, wenn der Server "startGame" sendet.
         } else {
-          // Im Singleplayer wird sofort gestartet.
+          // Singleplayer: Starte sofort
           this.initGame(selected);
           if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen();
@@ -301,7 +303,7 @@ export class Game {
     });
   }
 
-  // initGame: Initialisierung des Spielzustands (unabhängig vom Modus)
+  // initGame: Initialisiert den Spielzustand (sowohl Single- als auch Multiplayer)
   initGame(selectedFaction) {
     // Setze den Spielzustand zurück
     this.units = [];
@@ -323,7 +325,7 @@ export class Game {
     this.safeZoneTarget = { centerX: CONFIG.worldWidth / 2, centerY: CONFIG.worldHeight / 2, radius: 7000 };
 
     if (!this.isMultiplayerMode) {
-      // Singleplayer: Generiere komplette Welt (Spieler, KI, Gebäude etc.)
+      // Singleplayer: Erzeuge komplette Welt (lokale Spieler, KI, Gebäude, etc.)
       const totalKings = 11;
       const margin = 200;
       const L1 = CONFIG.worldWidth - 2 * margin;
@@ -353,14 +355,14 @@ export class Game {
         for (let j = 0; j < 10; j++) { this.units.push(Utils.spawnVassal(aiKing)); }
       }
     } else {
-      // Multiplayer: Erzeuge nur den lokalen Spieler. Statische Objekte (Buildings, Obstacles) sollten synchron erzeugt werden.
+      // Multiplayer: Erzeuge nur den lokalen Spieler.
       this.playerKing = new Unit(CONFIG.worldWidth / 2, CONFIG.worldHeight / 2, selectedFaction, "king");
       this.playerKing.isLocal = true;
       this.units.push(this.playerKing);
       for (let i = 0; i < 10; i++) { this.units.push(Utils.spawnVassal(this.playerKing)); }
       this.socket.emit("playerJoined", { x: this.playerKing.x, y: this.playerKing.y, faction: selectedFaction });
     }
-    // Beide Modi: Generiere statische Weltobjekte. Ein gemeinsamer Seed vom Server wäre hier ideal.
+    // Beide Modi: Erzeuge statische Weltobjekte (Buildings, Obstacles) – idealerweise basierend auf einem gemeinsamen Seed.
     Utils.generateObstacles(this);
     Utils.generateBuildingClusters(this);
   }
@@ -398,12 +400,12 @@ export class Game {
       this.updateRemotePlayers();
     }
 
-    // Aktualisiere alle Einheiten und Projekte
+    // Aktualisiere alle Einheiten und Projektile
     this.units.forEach(unit => unit.update(deltaTime, this));
     this.projectiles.forEach(proj => proj.update(deltaTime));
     this.projectiles = this.projectiles.filter(proj => !proj.expired);
 
-    // Kollisionsabfragen und andere Spielmechaniken
+    // Kollisionsprüfungen und weitere Mechaniken
     Utils.resolveUnitUnitCollisions(this);
     Utils.resolveUnitBuildingCollisions(this);
     Utils.resolveUnitObstacleCollisions(this);
