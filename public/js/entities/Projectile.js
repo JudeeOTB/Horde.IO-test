@@ -28,9 +28,10 @@ export class Projectile extends Entity {
     this.rotation = Math.atan2(this.vy, this.vx);
     this.trailParticles = [];
     this.trailSpawnTimer = 0;
+    this.impactEffectSpawned = false;
   }
   
-  update(deltaTime) {
+  update(deltaTime, game) { // Added 'game' parameter
     if (!this.onGround && !this.expired) {
       this.trailSpawnTimer += deltaTime;
       const spawnInterval = 50; // ms
@@ -73,6 +74,13 @@ export class Projectile extends Entity {
       this.z += this.vz * deltaTime / 16;
       if (this.z <= 0) {
         this.z = 0;
+        if (!this.onGround && !this.impactEffectSpawned && game && game.spawnVisualEffect) { // Check !this.onGround to ensure it's the first time
+            // Only spawn dirt puff for arrows, not for things that shouldn't stick or puff
+            // Assuming 'arrow' is the primary projectile type that does this.
+            // If there were other projectile types, one might add a 'type' property to Projectile.
+            game.spawnVisualEffect(this.x + this.width/2, this.y + this.height/2 - this.z, {r:139, g:69, b:19}, 8, 200, 3, 0.3);
+            this.impactEffectSpawned = true; 
+        }
         this.onGround = true;
         this.vx = 0;
         this.vy = 0;
@@ -86,6 +94,10 @@ export class Projectile extends Entity {
       if (Math.hypot(targetCenterX - projCenterX, targetCenterY - projCenterY) < 15) {
         this.target.hp -= this.damage;
         this.expired = true;
+        if (!this.impactEffectSpawned && game && game.spawnVisualEffect) {
+            game.spawnVisualEffect(this.x + this.width/2, this.y + this.height/2 - this.z, {r:255, g:100, b:0}, 5, 150, 2, 0.5);
+            this.impactEffectSpawned = true;
+        }
       }
     } else {
       this.groundHitTime += deltaTime;
