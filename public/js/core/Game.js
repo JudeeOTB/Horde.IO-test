@@ -33,6 +33,8 @@ export class Game {
     this.fps = 0;
     this.fpsCount = 0;
     this.fpsTime = 0;
+    this.activeVisualEffects = [];
+    this.floatingTexts = [];
 
     // Kamera und View
     this.cameraX = 0;
@@ -94,6 +96,7 @@ export class Game {
 
     // Game Over – Neustart
     document.getElementById("restartButton").addEventListener("click", () => {
+      if (this.soundManager) this.soundManager.playSound('ui_click');
       this.initGame(this.playerFaction);
       this.gameOver = false;
       this.lastTime = performance.now();
@@ -175,6 +178,7 @@ export class Game {
     const bgMusic = document.getElementById("bgMusic");
     const titleScreen = document.getElementById("titleScreen");
     titleScreen.addEventListener("click", () => {
+      if (this.soundManager) this.soundManager.playSound('ui_click');
       bgMusic.play().catch(err => console.log(err));
       titleScreen.style.opacity = "0";
       setTimeout(() => {
@@ -187,6 +191,7 @@ export class Game {
 
     // Hauptmenü – Singleplayer
     document.getElementById("btn-singleplayer").addEventListener("click", () => {
+      if (this.soundManager) this.soundManager.playSound('ui_click');
       this.isMultiplayerMode = false;
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
@@ -195,6 +200,7 @@ export class Game {
 
     // Hauptmenü – Multiplayer
     document.getElementById("btn-multiplayer").addEventListener("click", () => {
+      if (this.soundManager) this.soundManager.playSound('ui_click');
       this.isMultiplayerMode = true;
       this.socket = io();
       // Registrierung der Socket-Events
@@ -245,6 +251,7 @@ export class Game {
 
     // Optionen-Menü
     document.getElementById("btn-options").addEventListener("click", () => {
+      if (this.soundManager) this.soundManager.playSound('ui_click');
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       document.getElementById("optionsMenu").style.display = "flex";
@@ -253,6 +260,7 @@ export class Game {
 
     // Zurück aus dem Optionen-Menü
     document.getElementById("btn-back").addEventListener("click", () => {
+      if (this.soundManager) this.soundManager.playSound('ui_click');
       document.getElementById("optionsMenu").style.display = "none";
       document.getElementById("mainMenu").style.display = "flex";
       setTimeout(() => { 
@@ -262,6 +270,7 @@ export class Game {
     });
 
     document.getElementById("mainMenuButton").addEventListener("click", () => {
+      if (this.soundManager) this.soundManager.playSound('ui_click');
       document.getElementById("gameOverMenu").style.display = "none";
       const mainMenu = document.getElementById("mainMenu");
       mainMenu.style.display = "flex";
@@ -273,6 +282,7 @@ export class Game {
     // sendet der Client "characterSelected" und dann "lobbyReady".
     document.querySelectorAll("#selectionMenu button").forEach(btn => {
       btn.addEventListener("click", () => {
+        if (this.soundManager) this.soundManager.playSound('ui_click');
         const selected = btn.getAttribute("data-faction");
         document.getElementById("selectionMenu").style.display = "none";
         document.getElementById("gameUI").style.display = "none";
@@ -388,7 +398,7 @@ export class Game {
     }
 
     this.units.forEach(unit => unit.update(deltaTime, this));
-    this.projectiles.forEach(proj => proj.update(deltaTime));
+    this.projectiles.forEach(proj => proj.update(deltaTime, this)); // Pass game instance
     this.projectiles = this.projectiles.filter(proj => !proj.expired);
 
     Utils.resolveUnitUnitCollisions(this);
@@ -416,6 +426,64 @@ export class Game {
     if (this.isMultiplayerMode && this.socket && this.playerKing) {
       this.socket.emit("playerMoved", { x: this.playerKing.x, y: this.playerKing.y });
     }
+
+    // Update active visual effects
+    for (let i = this.activeVisualEffects.length - 1; i >= 0; i--) {
+      const particle = this.activeVisualEffects[i];
+      particle.life -= deltaTime;
+      if (particle.life <= 0) {
+        this.activeVisualEffects.splice(i, 1);
+      } else {
+        particle.x += particle.vx * (deltaTime / 16);
+        particle.y += particle.vy * (deltaTime / 16);
+        particle.alpha = Math.max(0, particle.life / particle.maxLife);
+      }
+    }
+
+    // Update floating texts
+    for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+      const textEffect = this.floatingTexts[i];
+      textEffect.life -= deltaTime;
+      if (textEffect.life <= 0) {
+        this.floatingTexts.splice(i, 1);
+      } else {
+        textEffect.currentY -= textEffect.riseSpeed * (deltaTime / 16);
+        textEffect.alpha = Math.max(0, textEffect.life / textEffect.maxLife);
+      }
+    }
+  }
+
+  spawnVisualEffect(x, y, color, count = 10, lifetime = 300, particleSize = 2, speed = 1) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const currentSpeed = Math.random() * speed; // Vary speed for each particle
+      this.activeVisualEffects.push({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * currentSpeed,
+        vy: Math.sin(angle) * currentSpeed,
+        life: lifetime,
+        maxLife: lifetime,
+        color: color, // {r, g, b}
+        size: particleSize,
+        alpha: 1.0
+      });
+    }
+  }
+
+  spawnFloatingText(text, x, y, color = {r:255, g:255, b:255}, duration = 1500, size = 16, riseSpeed = 0.5) {
+    this.floatingTexts.push({
+      text: text,
+      x: x,
+      y: y,
+      currentY: y,
+      color: color,
+      life: duration,
+      maxLife: duration,
+      alpha: 1.0,
+      size: size,
+      riseSpeed: riseSpeed
+    });
   }
 
   updateTime(deltaTime) {

@@ -28,6 +28,8 @@ export class Unit extends Entity {
       this.attackTimer = 0;
       this.attackDamageDealt = false;
       this.currentTarget = null;
+      this.dashReadyFlashTimer = 0; 
+      this.shieldReadyFlashTimer = 0;
     } else if (unitType === "archer") {
       this.team = leader.team;
       this.hp = 100;
@@ -63,9 +65,28 @@ export class Unit extends Entity {
     }
     this.idleTarget = null;
     this.dead = false;
+    this.deathSoundPlayed = false;
+    this.facingDirection = 1; // 1 for right, -1 for left
+    this.isMoving = false;
+    this.bobbingOffset = 0;
+    this.bobbingPhase = 0;
+    this.prevX = x; // Initialize prevX and prevY
+    this.prevY = y;
   }
   
   update(deltaTime, game) {
+    this.prevX = this.x;
+    this.prevY = this.y;
+    this.isMoving = false; // Assume not moving this tick
+
+    if (this.hp <= 0 && !this.dead && !this.deathSoundPlayed) {
+      if (game.soundManager) {
+        game.soundManager.playSound('unit_die');
+      }
+      this.deathSoundPlayed = true;
+      // Note: The existing game logic should handle setting 'this.dead = true' or removing the unit.
+    }
+
     // Berechne den Mittelpunkt dieser Einheit
     let centerX = this.x + this.width / 2,
         centerY = this.y + this.height / 2;
@@ -115,7 +136,11 @@ export class Unit extends Entity {
       if (Math.hypot(dxKing, dyKing) > 750) {
         let d = Math.hypot(dxKing, dyKing);
         if (d > 0) {
-          this.x += (dxKing / d) * this.speed * (deltaTime / 16);
+          const moveX = (dxKing / d) * this.speed * (deltaTime / 16);
+          if (Math.abs(moveX) > 0.1) {
+            this.facingDirection = moveX > 0 ? 1 : -1;
+          }
+          this.x += moveX;
           this.y += (dyKing / d) * this.speed * (deltaTime / 16);
         }
         return;
@@ -129,8 +154,12 @@ export class Unit extends Entity {
             dy = targetInfo.y - this.y,
             d = Math.hypot(dx, dy);
         const meleeThreshold = 50;
+        const horizontalMovement = dx; // dx is targetInfo.x - this.x
         if (d <= meleeThreshold) {
           if (!this.isAttacking) {
+            if (Math.abs(horizontalMovement) > 0.1) {
+              this.facingDirection = horizontalMovement > 0 ? 1 : -1;
+            }
             this.isAttacking = true;
             this.attackTimer = 500;
             this.attackDamageDealt = false;
@@ -138,20 +167,28 @@ export class Unit extends Entity {
           }
         } else {
           if (!this.isAttacking) {
-            this.x += (dx / d) * this.speed * (deltaTime / 16);
+            const moveX = (dx / d) * this.speed * (deltaTime / 16);
+            if (Math.abs(moveX) > 0.1) {
+              this.facingDirection = moveX > 0 ? 1 : -1;
+            }
+            this.x += moveX;
             this.y += (dy / d) * this.speed * (deltaTime / 16);
           }
         }
       } else {
         if (!this.isAttacking) {
-          let targetInfo = Utils.determineVassalTarget(this, game);
+          let targetInfo = Utils.determineVassalTarget(this, game); // Recalculate to get fresh dx
           if (targetInfo) {
-            let dx = targetInfo.x - this.x,
-                dy = targetInfo.y - this.y,
-                d = Math.hypot(dx, dy);
-            if (d > 5) {
-              this.x += (dx / d) * this.speed * (deltaTime / 16);
-              this.y += (dy / d) * this.speed * (deltaTime / 16);
+            let dxToTarget = targetInfo.x - this.x; // Use a different variable name for clarity
+            let dyToTarget = targetInfo.y - this.y;
+            let dToTarget = Math.hypot(dxToTarget, dyToTarget);
+            if (dToTarget > 5) {
+              const moveX = (dxToTarget / dToTarget) * this.speed * (deltaTime / 16);
+              if (Math.abs(moveX) > 0.1) {
+                this.facingDirection = moveX > 0 ? 1 : -1;
+              }
+              this.x += moveX;
+              this.y += (dyToTarget / dToTarget) * this.speed * (deltaTime / 16);
             }
           }
         }
@@ -163,6 +200,7 @@ export class Unit extends Entity {
             this.currentTarget.hp -= 20;
           }
           this.attackDamageDealt = true;
+          if (game.soundManager) game.soundManager.playSound('attack_melee');
           if (!this.slashEffect) {
             let unitCenterX = this.x + this.width / 2,
                 unitCenterY = this.y + this.height / 2;
@@ -182,7 +220,8 @@ export class Unit extends Entity {
               y: unitCenterY,
               rotation: rotation,
               alpha: 0.5,
-              timer: 500
+              timer: 500,
+              scale: 0.5
             };
           }
         }
@@ -226,17 +265,22 @@ export class Unit extends Entity {
           let projX = this.x + this.width / 2;
           let projY = this.y + this.height / 2;
           game.projectiles.push(new Utils.ProjectileWrapper(projX, projY, target, 10));
+          if (game.soundManager) game.soundManager.playSound('attack_arrow');
           this.lastAttackTimer = 0;
         }
       } else {
         let targetInfo = Utils.determineVassalTarget(this, game);
         if (targetInfo) {
-          let dx = targetInfo.x - this.x;
-          let dy = targetInfo.y - this.y;
-          let d = Math.hypot(dx, dy);
-          if (d > 5) {
-            this.x += (dx / d) * this.speed * (deltaTime / 16);
-            this.y += (dy / d) * this.speed * (deltaTime / 16);
+          let dxToTarget = targetInfo.x - this.x; // Use a different variable name
+          let dyToTarget = targetInfo.y - this.y;
+          let dToTarget = Math.hypot(dxToTarget, dyToTarget);
+          if (dToTarget > 5) {
+            const moveX = (dxToTarget / dToTarget) * this.speed * (deltaTime / 16);
+            if (Math.abs(moveX) > 0.1) {
+                this.facingDirection = moveX > 0 ? 1 : -1;
+            }
+            this.x += moveX;
+            this.y += (dyToTarget / dToTarget) * this.speed * (deltaTime / 16);
           }
         }
       }
@@ -257,17 +301,33 @@ export class Unit extends Entity {
         let mag = Math.hypot(moveX, moveY);
         if (mag > 0) {
           moveX /= mag; moveY /= mag;
+          if (Math.abs(moveX) > 0.1) { // Threshold for player king
+            this.facingDirection = moveX > 0 ? 1 : -1;
+          }
           this.lastDirection = { x: moveX, y: moveY };
           this.x += moveX * this.speed * (deltaTime / 16);
           this.y += moveY * this.speed * (deltaTime / 16);
         }
+        const prevDashTimer = this.dashTimer;
         this.dashTimer += deltaTime;
+        if (this.dashTimer >= Utils.CONFIG.dashCooldown && prevDashTimer < Utils.CONFIG.dashCooldown) {
+            this.dashReadyFlashTimer = 250; //ms
+        }
+        if (this.dashReadyFlashTimer > 0) this.dashReadyFlashTimer -= deltaTime;
+
         if (game.inputHandler.keys[" "] && this.dashTimer >= Utils.CONFIG.dashCooldown && (this.lastDirection.x || this.lastDirection.y)) {
           this.x += this.lastDirection.x * Utils.CONFIG.dashDistance;
           this.y += this.lastDirection.y * Utils.CONFIG.dashDistance;
           this.dashTimer = 0;
         }
+        
+        const prevShieldCooldownTimer = this.shieldCooldownTimer;
         this.shieldCooldownTimer += deltaTime;
+        if (this.shieldCooldownTimer >= Utils.CONFIG.shieldAbilityCooldown && prevShieldCooldownTimer < Utils.CONFIG.shieldAbilityCooldown) {
+            this.shieldReadyFlashTimer = 250; //ms
+        }
+        if (this.shieldReadyFlashTimer > 0) this.shieldReadyFlashTimer -= deltaTime;
+
         if (game.inputHandler.keys["q"] && this.shieldCooldownTimer >= Utils.CONFIG.shieldAbilityCooldown && !this.isShieldActive) {
           this.isShieldActive = true;
           this.shieldTimer = Utils.CONFIG.shieldAbilityDuration;
@@ -299,6 +359,7 @@ export class Unit extends Entity {
               this.currentTarget.hp -= 20;
             }
             this.attackDamageDealt = true;
+            if (game.soundManager) game.soundManager.playSound('attack_melee');
             if (!this.slashEffect) {
               let unitCenterX = this.x + this.width / 2;
               let unitCenterY = this.y + this.height / 2;
@@ -318,7 +379,8 @@ export class Unit extends Entity {
                 y: unitCenterY,
                 rotation: rotation,
                 alpha: 0.5,
-                timer: 500
+                timer: 500,
+                scale: 0.5
               };
             }
           }
@@ -345,11 +407,19 @@ export class Unit extends Entity {
             }
           } else {
             if (!this.isAttacking) {
-              this.x += (dx / d) * this.speed * (deltaTime / 16);
+            const moveX = (dx / d) * this.speed * (deltaTime / 16);
+            if (Math.abs(moveX) > 0.1) {
+              this.facingDirection = moveX > 0 ? 1 : -1;
+            }
+            this.x += moveX;
               this.y += (dy / d) * this.speed * (deltaTime / 16);
             }
           }
-        } else {
+      } else { // AI King Idle/Dodge movement
+        let moveX = 0;
+        let moveY = 0;
+        let determinedMove = false;
+
           let dodgeVector = { x: 0, y: 0 };
           let kingCenterX = this.x + this.width / 2;
           let kingCenterY = this.y + this.height / 2;
@@ -377,20 +447,29 @@ export class Unit extends Entity {
           }
           let dodgeMag = Math.hypot(dodgeVector.x, dodgeVector.y);
           if (dodgeMag > 0.1) {
-            this.x += (dodgeVector.x / dodgeMag) * this.speed * (deltaTime / 16);
-            this.y += (dodgeVector.y / dodgeMag) * this.speed * (deltaTime / 16);
+            moveX = (dodgeVector.x / dodgeMag) * this.speed * (deltaTime / 16);
+            moveY = (dodgeVector.y / dodgeMag) * this.speed * (deltaTime / 16);
             this.idleTarget = null;
+            determinedMove = true;
           } else {
             if (!this.idleTarget || Math.hypot(this.idleTarget.x - this.x, this.idleTarget.y - this.y) < 10) {
               this.idleTarget = { x: Math.random() * Utils.CONFIG.worldWidth, y: Math.random() * Utils.CONFIG.worldHeight };
             }
-            let dx = this.idleTarget.x - this.x,
-                dy = this.idleTarget.y - this.y,
-                d = Math.hypot(dx, dy);
-            if (d > 0) {
-              this.x += (dx / d) * this.speed * (deltaTime / 16);
-              this.y += (dy / d) * this.speed * (deltaTime / 16);
+            let dxToIdle = this.idleTarget.x - this.x;
+            let dyToIdle = this.idleTarget.y - this.y;
+            let dToIdle = Math.hypot(dxToIdle, dyToIdle);
+            if (dToIdle > 0) {
+              moveX = (dxToIdle / dToIdle) * this.speed * (deltaTime / 16);
+              moveY = (dyToIdle / dToIdle) * this.speed * (deltaTime / 16);
+              determinedMove = true;
             }
+          }
+          if (determinedMove) {
+            if (Math.abs(moveX) > 0.1) {
+                this.facingDirection = moveX > 0 ? 1 : -1;
+            }
+            this.x += moveX;
+            this.y += moveY;
           }
         }
         if (this.isAttacking) {
@@ -400,6 +479,7 @@ export class Unit extends Entity {
               this.currentTarget.hp -= 20;
             }
             this.attackDamageDealt = true;
+            if (game.soundManager) game.soundManager.playSound('attack_melee');
             if (!this.slashEffect) {
               let unitCenterX = this.x + this.width / 2;
               let unitCenterY = this.y + this.height / 2;
@@ -419,7 +499,8 @@ export class Unit extends Entity {
                 y: unitCenterY,
                 rotation: rotation,
                 alpha: 0.5,
-                timer: 500
+                timer: 500,
+                scale: 0.5
               };
             }
           }
@@ -438,8 +519,38 @@ export class Unit extends Entity {
       if (this.slashEffect.timer <= 0) {
         this.slashEffect = null;
       } else {
+        // Calculate progress (0 at start, 1 at end of life)
+        let progress = 1 - (this.slashEffect.timer / 500); // 500 is the original lifetime
+
+        // Alpha: Fades out over the whole duration (current behavior)
         this.slashEffect.alpha = 0.5 * (this.slashEffect.timer / 500);
+
+        // Scale:
+        // - Quickly expand in the first half of its life (e.g., from 0.5 to 1.2)
+        // - Slowly shrink in the second half (e.g., from 1.2 to 0.8)
+        if (progress < 0.5) { // First half: expand
+            // progress goes 0 to 0.5, so map 2 * progress from 0 to 1
+            this.slashEffect.scale = 0.5 + (0.7 * (progress * 2)); // from 0.5 to 1.2
+        } else { // Second half: shrink
+            // progress goes 0.5 to 1, so map (progress - 0.5) * 2 from 0 to 1
+            this.slashEffect.scale = 1.2 - (0.4 * ((progress - 0.5) * 2)); // from 1.2 to 0.8
+        }
       }
+    }
+
+    // At the end of Unit.update(), before calculating bobbingOffset:
+    const movementThreshold = 0.1; // Minimum displacement to be considered movement
+    if (Math.abs(this.x - this.prevX) > movementThreshold || Math.abs(this.y - this.prevY) > movementThreshold) {
+        this.isMoving = true;
+    }
+
+    // Then calculate bobbingOffset based on this.isMoving
+    if (this.isMoving) {
+        this.bobbingPhase = (this.bobbingPhase || 0) + deltaTime * 0.01; // Adjust speed
+        this.bobbingOffset = Math.sin(this.bobbingPhase) * 2; // Adjust amplitude
+    } else {
+        this.bobbingOffset = 0;
+        this.bobbingPhase = 0; // Reset phase when not moving
     }
   }
   
@@ -450,8 +561,10 @@ export class Unit extends Entity {
       ctx.globalAlpha = this.slashEffect.alpha;
       ctx.translate(this.slashEffect.x - cameraX, this.slashEffect.y - cameraY);
       ctx.rotate(this.slashEffect.rotation);
-      let spriteWidth = this.width * 2;
-      let spriteHeight = this.height * 2;
+      let baseSpriteWidth = this.width * 2; // Original base size
+      let baseSpriteHeight = this.height * 2;
+      let spriteWidth = baseSpriteWidth * this.slashEffect.scale;
+      let spriteHeight = baseSpriteHeight * this.slashEffect.scale;
       ctx.drawImage(slashImage, -spriteWidth / 2, -spriteHeight / 2, spriteWidth, spriteHeight);
       ctx.restore();
     }
@@ -465,14 +578,29 @@ export class Unit extends Entity {
       else if (this.level === 3) sprite = assets.factions[this.faction].level3;
     }
     
-    if (sprite && sprite.complete) {
-      ctx.drawImage(sprite, this.x - cameraX, this.y - cameraY, this.width, this.height);
+    ctx.save();
+    if (this.facingDirection === -1) {
+        ctx.translate((this.x - cameraX) + this.width, (this.y - cameraY) + this.bobbingOffset);
+        ctx.scale(-1, 1);
+        if (sprite && sprite.complete) {
+            ctx.drawImage(sprite, 0, 0, this.width, this.height);
+        } else {
+            ctx.fillStyle = "gray"; // Fallback if sprite not loaded
+            ctx.fillRect(0, 0, this.width, this.height);
+        }
     } else {
-      ctx.fillStyle = "gray";
-      ctx.fillRect(this.x - cameraX, this.y - cameraY, this.width, this.height);
+        ctx.translate(this.x - cameraX, (this.y - cameraY) + this.bobbingOffset);
+        if (sprite && sprite.complete) {
+            ctx.drawImage(sprite, 0, 0, this.width, this.height);
+        } else {
+            ctx.fillStyle = "gray"; // Fallback if sprite not loaded
+            ctx.fillRect(0, 0, this.width, this.height);
+        }
     }
+    ctx.restore();
     
-    // Zeichne den Lebensbalken oberhalb der Einheit.
+    // Zeichne den Lebensbalken oberhalb der Einheit. (NACH ctx.restore())
+    // Health bar does NOT bob for now.
     // Für normale Units: Breite entspricht der Unit, für Könige etwas länger (1.1‑fach) und dicker (8px hoch).
     const baseBarWidth = this.width;
     let barWidth, barHeight;
@@ -499,10 +627,20 @@ export class Unit extends Entity {
       ctx.lineWidth = 2;
       ctx.strokeRect(this.x - cameraX, this.y - cameraY, this.width, this.height);
     }
+    // Archer outline and King shield effect are drawn relative to unit's absolute position,
+    // so they should also be outside the sprite's save/restore block or adjusted.
+    // Current implementation draws them after the main sprite block, which is fine.
+    if (this.unitType === "archer") {
+      ctx.strokeStyle = "gold";
+      ctx.lineWidth = 2;
+      // Draw relative to the unit's top-left corner, not the potentially translated origin
+      ctx.strokeRect(this.x - cameraX, this.y - cameraY, this.width, this.height);
+    }
     if (this.unitType === "king" && this.isShieldActive) {
       ctx.strokeStyle = "cyan";
       ctx.lineWidth = 3;
       ctx.beginPath();
+      // Draw relative to the unit's center, not the potentially translated origin
       ctx.arc(this.x + this.width / 2 - cameraX, this.y + this.height / 2 - cameraY, this.width, 0, Math.PI * 2);
       ctx.stroke();
     }

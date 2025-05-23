@@ -324,16 +324,22 @@ export function handlePowerUps(game, deltaTime) {
   for (let i = game.powerUps.length - 1; i >= 0; i--) {
     let powerUp = game.powerUps[i];
     if (game.playerKing && game.playerKing.intersects(powerUp)) {
+      let color;
       if (powerUp.effectType === "speed") {
+        color = {r:255, g:215, b:0}; // Gold-ish yellow
         game.playerKing.speed *= 1.5;
         setTimeout(() => { game.playerKing.speed /= 1.5; }, powerUp.duration);
       } else if (powerUp.effectType === "shield") {
+        color = {r:0, g:191, b:255}; // Deep sky blue
         if (game.playerKing.isShieldActive) {
           game.playerKing.shieldTimer += powerUp.duration;
         } else {
           game.playerKing.isShieldActive = true;
           game.playerKing.shieldTimer = powerUp.duration;
         }
+      }
+      if (color) { // Spawn effect if a color was determined (i.e., known power-up type)
+        game.spawnVisualEffect(powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2, color, 15, 400, 3, 1.2);
       }
       game.powerUps.splice(i, 1);
     }
@@ -343,28 +349,54 @@ export function handlePowerUps(game, deltaTime) {
 export function handleSouls(game) {
   for (let i = game.souls.length - 1; i >= 0; i--) {
     let soul = game.souls[i], collected = false;
+    let collectingUnit = null; // Keep track of the unit that collected the soul
+
     for (let unit of game.units) {
       let unitCenterX = unit.x + unit.width / 2;
       let unitCenterY = unit.y + unit.height / 2;
       let soulCenterX = soul.x + soul.width / 2;
       let soulCenterY = soul.y + soul.height / 2;
       if (Math.hypot(unitCenterX - soulCenterX, unitCenterY - soulCenterY) < 40) {
+        collectingUnit = unit; // Store the collecting unit
         if (soul.soulType === "green") {
           game.units.push(spawnVassal(unit.leader));
+          if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) { // Check if player's unit
+            game.spawnFloatingText("+1 Vassal", collectingUnit.x + collectingUnit.width/2, collectingUnit.y, {r:0, g:255, b:0}, 1500, 16, 0.5);
+          }
           collected = true;
           break;
         } else if (soul.soulType === "blue" && unit.unitType === "vassal" && unit.level === 1) {
           unit.level = 2;
+           if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) {
+            game.spawnFloatingText("Level Up!", collectingUnit.x + collectingUnit.width/2, collectingUnit.y, {r:255, g:215, b:0}, 1500, 18, 0.7);
+          }
           collected = true;
           break;
         } else if (soul.soulType === "purple" && unit.unitType === "vassal" && unit.level === 2) {
           unit.level = 3;
+          if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) {
+            game.spawnFloatingText("Level Up!", collectingUnit.x + collectingUnit.width/2, collectingUnit.y, {r:255, g:215, b:0}, 1500, 18, 0.7);
+          }
           collected = true;
           break;
         }
       }
     }
-    if (collected) game.souls.splice(i, 1);
+    if (collected) {
+      let effectColor; // Renamed to avoid conflict with text color
+      if (soul.soulType === "green") {
+        effectColor = {r:0, g:200, b:0};
+      } else if (soul.soulType === "blue") {
+        effectColor = {r:0, g:100, b:255};
+      } else if (soul.soulType === "purple") {
+        effectColor = {r:150, g:0, b:150};
+      }
+      // Spawn effect at the soul's position, not the collecting unit's.
+      if (effectColor && game.spawnVisualEffect) { // Ensure color is defined and method exists
+          game.spawnVisualEffect(soul.x + soul.width/2, soul.y + soul.height/2, effectColor, 10, 300, 2, 1);
+      }
+      game.souls.splice(i, 1);
+    }
   }
 }
 

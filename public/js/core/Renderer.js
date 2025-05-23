@@ -48,6 +48,22 @@ export class Renderer {
       // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
       this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
 
+      // Draw active visual effects
+      game.activeVisualEffects.forEach(particle => {
+        ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.alpha})`;
+        ctx.beginPath();
+        ctx.arc(particle.x - game.cameraX, particle.y - game.cameraY, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Draw floating texts
+      game.floatingTexts.forEach(textEffect => {
+        ctx.font = `${textEffect.size}px 'Cinzel', serif`;
+        ctx.fillStyle = `rgba(${textEffect.color.r}, ${textEffect.color.g}, ${textEffect.color.b}, ${textEffect.alpha})`;
+        ctx.textAlign = "center";
+        ctx.fillText(textEffect.text, textEffect.x - game.cameraX, textEffect.currentY - game.cameraY);
+      });
+
       ctx.restore();
       this.drawMinimap();
     } else {
@@ -81,7 +97,23 @@ export class Renderer {
       this.drawSafeZone();
       // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
       this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+      
+      // Draw active visual effects (Desktop)
+      game.activeVisualEffects.forEach(particle => {
+        ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.alpha})`;
+        ctx.beginPath();
+        ctx.arc(particle.x - game.cameraX, particle.y - game.cameraY, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
+      // Draw floating texts (Desktop)
+      game.floatingTexts.forEach(textEffect => {
+        ctx.font = `${textEffect.size}px 'Cinzel', serif`;
+        ctx.fillStyle = `rgba(${textEffect.color.r}, ${textEffect.color.g}, ${textEffect.color.b}, ${textEffect.alpha})`;
+        ctx.textAlign = "center";
+        ctx.fillText(textEffect.text, textEffect.x - game.cameraX, textEffect.currentY - game.cameraY);
+      });
+      
       this.drawMinimap();
     }
     this.drawHUD();
@@ -268,31 +300,54 @@ export class Renderer {
     ctx.fillRect(10, 10, 160, 40);
     ctx.font = "24px 'Cinzel', serif";
     ctx.fillStyle = "white";
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Könige: " + kingsAlive, 20, 40);
     
     // Dash-Cooldown-Balken
     let dashRatio = Math.min(game.playerKing.dashTimer / CONFIG.dashCooldown, 1);
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(10, 60, 160, 20);
-    ctx.fillStyle = "yellow";
+    // Cooldown Ready Flash for Dash
+    if (game.playerKing.dashReadyFlashTimer > 0 && dashRatio >= 1) {
+        ctx.fillStyle = "#FFFF99"; // Brighter yellow
+    } else {
+        ctx.fillStyle = "yellow";
+    }
     ctx.fillRect(10, 60, 160 * dashRatio, 20);
     ctx.strokeStyle = "white";
     ctx.strokeRect(10, 60, 160, 20);
-    ctx.font = "16px 'Cinzel', serif";
+    ctx.font = "14px 'Cinzel', serif"; // Slightly smaller for timer text
     ctx.fillStyle = "white";
-    ctx.fillText("Dash", 75, 75);
+    ctx.textAlign = "center"; // Center the text
+    if (dashRatio < 1) {
+        let remainingDash = ((CONFIG.dashCooldown - game.playerKing.dashTimer) / 1000).toFixed(1);
+        ctx.fillText(remainingDash + "s", 10 + 160 / 2, 75);
+    } else {
+        ctx.fillText("Dash Ready!", 10 + 160 / 2, 75);
+    }
     
     // Shield-Cooldown-Balken
     let shieldRatio = Math.min(game.playerKing.shieldCooldownTimer / CONFIG.shieldAbilityCooldown, 1);
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(10, 90, 160, 20);
-    ctx.fillStyle = "blue";
+    // Cooldown Ready Flash for Shield
+    if (game.playerKing.shieldReadyFlashTimer > 0 && shieldRatio >= 1) {
+        ctx.fillStyle = "#66CCFF"; // Brighter blue
+    } else {
+        ctx.fillStyle = "blue";
+    }
     ctx.fillRect(10, 90, 160 * shieldRatio, 20);
     ctx.strokeStyle = "white";
     ctx.strokeRect(10, 90, 160, 20);
-    ctx.font = "16px 'Cinzel', serif";
+    ctx.font = "14px 'Cinzel', serif"; // Slightly smaller for timer text
     ctx.fillStyle = "white";
-    ctx.fillText("Shield", 75, 105);
+    ctx.textAlign = "center"; // Center the text
+    if (shieldRatio < 1) {
+        let remainingShield = ((CONFIG.shieldAbilityCooldown - game.playerKing.shieldCooldownTimer) / 1000).toFixed(1);
+        ctx.fillText(remainingShield + "s", 10 + 160 / 2, 105);
+    } else {
+        ctx.fillText("Shield Ready!", 10 + 160 / 2, 105);
+    }
     
     // Vasallen-Counter und Bogenschützen-Anzeige (links mittig)
     let vassals = game.units.filter(u => u.unitType === "vassal" && u.team === game.playerKing.team);
@@ -304,13 +359,18 @@ export class Renderer {
     ctx.fillRect(10, 120, 220, 160);
     ctx.font = "16px 'Cinzel', serif";
     ctx.fillStyle = "white";
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Vassalen:", 20, 140);
     ctx.drawImage(game.assets.factions[game.playerFaction].level1, 20, 150, 24, 24);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Level 1: " + v1, 50, 168);
     ctx.drawImage(game.assets.factions[game.playerFaction].level2, 20, 180, 24, 24);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Level 2: " + v2, 50, 198);
     ctx.drawImage(game.assets.factions[game.playerFaction].level3, 20, 210, 24, 24);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Level 3: " + v3, 50, 228);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Bogenschützen: " + archers.length, 20, 258);
     
     // FPS-Anzeige (unten links)
@@ -328,7 +388,32 @@ export class Renderer {
     ctx.fillStyle = "white";
     ctx.textAlign = "center";
     ctx.fillText(timerText, cw / 2, 30);
-    ctx.textAlign = "left";
+    
+    // Player King Health on HUD (Bottom-Center)
+    const playerHP = game.playerKing.hp;
+    const playerMaxHP = 300; // Assuming King's max HP
+    const healthText = `HP: ${Math.max(0, playerHP).toFixed(0)} / ${playerMaxHP}`;
+    ctx.font = "20px 'Cinzel', serif";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.fillText(healthText, cw / 2, ch - 25); // Adjusted Y position
+
+    let hudHealthBarWidth = 200;
+    let hudHealthBarHeight = 15;
+    let hudHealthBarX = cw / 2 - hudHealthBarWidth / 2;
+    let hudHealthBarY = ch - 50; // Above the text
+    
+    ctx.fillStyle = "rgba(0,0,0,0.7)"; // Slightly darker background for HUD health bar
+    ctx.fillRect(hudHealthBarX, hudHealthBarY, hudHealthBarWidth, hudHealthBarHeight);
+    
+    ctx.fillStyle = "lime";
+    ctx.fillRect(hudHealthBarX, hudHealthBarY, hudHealthBarWidth * (Math.max(0, playerHP) / playerMaxHP), hudHealthBarHeight);
+    
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1; // Thinner line for HUD bar
+    ctx.strokeRect(hudHealthBarX, hudHealthBarY, hudHealthBarWidth, hudHealthBarHeight);
+
+    ctx.textAlign = "left"; // Reset textAlign
     ctx.restore();
   }
 }
