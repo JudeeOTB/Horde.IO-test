@@ -14,104 +14,122 @@ export class Renderer {
     // Leere den Canvas anhand der logischen (CSS‑)Größe
     ctx.clearRect(0, 0, game.logicalWidth, game.logicalHeight);
 
+    // Update viewWidth and viewHeight based on mode
     if (game.isMobile) {
-      ctx.save();
-      // Weltzeichnung – es wird der gameZoom-Faktor angewendet (jetzt 1.0)
-      ctx.scale(game.gameZoom, game.gameZoom);
-      game.viewWidth = game.logicalWidth / game.gameZoom;
-      game.viewHeight = game.logicalHeight / game.gameZoom;
-      if (game.playerKing) {
+        game.viewWidth = game.logicalWidth / game.gameZoom;
+        game.viewHeight = game.logicalHeight / game.gameZoom;
+    } else {
+        game.viewWidth = game.logicalWidth;
+        game.viewHeight = game.logicalHeight;
+    }
+    
+    // Update camera position
+    if (game.playerKing) {
         game.cameraX = game.playerKing.x - game.viewWidth / 2;
         game.cameraY = game.playerKing.y - game.viewHeight / 2;
         game.cameraX = Math.max(0, Math.min(CONFIG.worldWidth - game.viewWidth, game.cameraX));
         game.cameraY = Math.max(0, Math.min(CONFIG.worldHeight - game.viewHeight, game.cameraY));
-      } else {
+    } else {
         game.cameraX = 0;
         game.cameraY = 0;
-      }
-      this.drawGround();
-      game.obstacles.forEach(o => o.draw(ctx, game.cameraX, game.cameraY));
-      game.buildings.forEach(b => b.draw(ctx, game.cameraX, game.cameraY, game.assets));
-      game.souls.forEach(s => s.draw(ctx, game.cameraX, game.cameraY, game.assets));
-      game.powerUps.forEach(p => p.draw(ctx, game.cameraX, game.cameraY));
-      game.projectiles.forEach(proj =>
-        proj.draw(ctx, game.cameraX, game.cameraY, game.assets.arrow)
+    }
+
+    const camX = game.cameraX;
+    const camY = game.cameraY;
+    const viewW = game.viewWidth;
+    const viewH = game.viewHeight;
+
+    // Helper for culling check
+    const isInView = (entity, width, height) => {
+        return entity.x + width > camX && entity.x < camX + viewW &&
+               entity.y + height > camY && entity.y < camY + viewH;
+    };
+    
+    const isInViewCentered = (item, itemWidth, itemHeight) => { // For items where x,y is center
+        return item.x - itemWidth / 2 < camX + viewW &&
+               item.x + itemWidth / 2 > camX &&
+               item.y - itemHeight / 2 < camY + viewH &&
+               item.y + itemHeight / 2 > camY;
+    };
+
+
+    if (game.isMobile) {
+      ctx.save();
+      ctx.scale(game.gameZoom, game.gameZoom);
+      
+      this.drawGround(); // Ground is full screen, no specific culling needed other than camera
+      
+      game.obstacles.filter(o => isInView(o, o.width, o.height)).forEach(o => o.draw(ctx, camX, camY));
+      game.buildings.filter(b => isInView(b, b.width, b.height)).forEach(b => b.draw(ctx, camX, camY, game.assets));
+      game.souls.filter(s => isInView(s, s.width, s.height)).forEach(s => s.draw(ctx, camX, camY, game.assets));
+      game.powerUps.filter(p => isInView(p, p.width, p.height)).forEach(p => p.draw(ctx, camX, camY));
+      game.projectiles.filter(proj => isInView(proj, proj.width, proj.height)).forEach(proj =>
+        proj.draw(ctx, camX, camY, game.assets.arrow)
       );
-      game.units.forEach(u =>
-        u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets, game.playerKing ? game.playerKing.team : null)
+      game.units.filter(u => isInView(u, u.width, u.height)).forEach(u =>
+        u.draw(ctx, camX, camY, game.slashImage, game.assets, game.playerKing ? game.playerKing.team : null)
       );
       
-      // Zeichne zuerst die Gesundheitsbalken für alle Nicht‑Könige
-      this.drawNonKingHealthBars(game, ctx, game.cameraX, game.cameraY);
-      // Zeichne die Safe Zone
-      this.drawSafeZone();
-      // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
-      this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+      this.drawNonKingHealthBars(game, ctx, camX, camY); // Health bars are tied to units, unit culling handles this
+      this.drawSafeZone(); // Safe zone can be large, specific culling might be complex, draw for now
+      this.drawKingHealthBars(game, ctx, camX, camY); // Tied to units
 
-      // Draw active visual effects
-      game.activeVisualEffects.forEach(particle => {
+      game.activeVisualEffects.filter(p => {
+          const pSize = p.size * 2; return isInViewCentered(p, pSize, pSize);
+      }).forEach(particle => {
         ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.alpha})`;
         ctx.beginPath();
-        ctx.arc(particle.x - game.cameraX, particle.y - game.cameraY, particle.size, 0, Math.PI * 2);
+        ctx.arc(particle.x - camX, particle.y - camY, particle.size, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Draw floating texts
-      game.floatingTexts.forEach(textEffect => {
+      game.floatingTexts.filter(t => {
+          const tWidth = t.size * 4; const tHeight = t.size;
+          return isInViewCentered({x: t.x, y: t.currentY}, tWidth, tHeight); // Use currentY for text
+      }).forEach(textEffect => {
         ctx.font = `${textEffect.size}px 'Cinzel', serif`;
         ctx.fillStyle = `rgba(${textEffect.color.r}, ${textEffect.color.g}, ${textEffect.color.b}, ${textEffect.alpha})`;
         ctx.textAlign = "center";
-        ctx.fillText(textEffect.text, textEffect.x - game.cameraX, textEffect.currentY - game.cameraY);
+        ctx.fillText(textEffect.text, textEffect.x - camX, textEffect.currentY - camY);
       });
 
       ctx.restore();
       this.drawMinimap();
     } else {
-      // Desktop: Kein zusätzlicher Zoom
-      game.viewWidth = game.logicalWidth;
-      game.viewHeight = game.logicalHeight;
-      if (game.playerKing) {
-        game.cameraX = game.playerKing.x - game.logicalWidth / 2;
-        game.cameraY = game.playerKing.y - game.logicalHeight / 2;
-        game.cameraX = Math.max(0, Math.min(CONFIG.worldWidth - game.logicalWidth, game.cameraX));
-        game.cameraY = Math.max(0, Math.min(CONFIG.worldHeight - game.logicalHeight, game.cameraY));
-      } else {
-        game.cameraX = 0;
-        game.cameraY = 0;
-      }
+      // Desktop: No gameZoom scaling, direct drawing
       this.drawGround();
-      game.obstacles.forEach(o => o.draw(ctx, game.cameraX, game.cameraY));
-      game.buildings.forEach(b => b.draw(ctx, game.cameraX, game.cameraY, game.assets));
-      game.souls.forEach(s => s.draw(ctx, game.cameraX, game.cameraY, game.assets));
-      game.powerUps.forEach(p => p.draw(ctx, game.cameraX, game.cameraY));
-      game.projectiles.forEach(proj =>
-        proj.draw(ctx, game.cameraX, game.cameraY, game.assets.arrow)
+      game.obstacles.filter(o => isInView(o, o.width, o.height)).forEach(o => o.draw(ctx, camX, camY));
+      game.buildings.filter(b => isInView(b, b.width, b.height)).forEach(b => b.draw(ctx, camX, camY, game.assets));
+      game.souls.filter(s => isInView(s, s.width, s.height)).forEach(s => s.draw(ctx, camX, camY, game.assets));
+      game.powerUps.filter(p => isInView(p, p.width, p.height)).forEach(p => p.draw(ctx, camX, camY));
+      game.projectiles.filter(proj => isInView(proj, proj.width, proj.height)).forEach(proj =>
+        proj.draw(ctx, camX, camY, game.assets.arrow)
       );
-      game.units.forEach(u =>
-        u.draw(ctx, game.cameraX, game.cameraY, game.slashImage, game.assets, game.playerKing ? game.playerKing.team : null)
+      game.units.filter(u => isInView(u, u.width, u.height)).forEach(u =>
+        u.draw(ctx, camX, camY, game.slashImage, game.assets, game.playerKing ? game.playerKing.team : null)
       );
 
-      // Zeichne zuerst die Gesundheitsbalken für alle Nicht‑Könige
-      this.drawNonKingHealthBars(game, ctx, game.cameraX, game.cameraY);
-      // Zeichne die Safe Zone
+      this.drawNonKingHealthBars(game, ctx, camX, camY);
       this.drawSafeZone();
-      // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
-      this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+      this.drawKingHealthBars(game, ctx, camX, camY);
       
-      // Draw active visual effects (Desktop)
-      game.activeVisualEffects.forEach(particle => {
+      game.activeVisualEffects.filter(p => {
+          const pSize = p.size * 2; return isInViewCentered(p, pSize, pSize);
+      }).forEach(particle => {
         ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.alpha})`;
         ctx.beginPath();
-        ctx.arc(particle.x - game.cameraX, particle.y - game.cameraY, particle.size, 0, Math.PI * 2);
+        ctx.arc(particle.x - camX, particle.y - camY, particle.size, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // Draw floating texts (Desktop)
-      game.floatingTexts.forEach(textEffect => {
+      game.floatingTexts.filter(t => {
+          const tWidth = t.size * 4; const tHeight = t.size;
+           return isInViewCentered({x: t.x, y: t.currentY}, tWidth, tHeight);
+      }).forEach(textEffect => {
         ctx.font = `${textEffect.size}px 'Cinzel', serif`;
         ctx.fillStyle = `rgba(${textEffect.color.r}, ${textEffect.color.g}, ${textEffect.color.b}, ${textEffect.alpha})`;
         ctx.textAlign = "center";
-        ctx.fillText(textEffect.text, textEffect.x - game.cameraX, textEffect.currentY - game.cameraY);
+        ctx.fillText(textEffect.text, textEffect.x - camX, textEffect.currentY - camY);
       });
       
       this.drawMinimap();
