@@ -72,6 +72,10 @@ export class Unit extends Entity {
     this.bobbingPhase = 0;
     this.prevX = x; // Initialize prevX and prevY
     this.prevY = y;
+    this.footstepTimer = 0;
+    this.footstepIntervalMin = 300; // ms
+    this.footstepIntervalMax = 450; // ms
+    this.footstepTimer = this.footstepIntervalMin + Math.random() * (this.footstepIntervalMax - this.footstepIntervalMin);
   }
   
   update(deltaTime, game) {
@@ -81,7 +85,22 @@ export class Unit extends Entity {
 
     if (this.hp <= 0 && !this.dead && !this.deathSoundPlayed) {
       if (game.soundManager) {
-        game.soundManager.playSound('unit_die');
+        let deathSoundName = '';
+        if (game.notifyCombatEvent) game.notifyCombatEvent(); // Notify combat event on death
+        if (this.faction === 'human') deathSoundName = 'death_human';
+        else if (this.faction === 'elf') deathSoundName = 'death_elf';
+        else if (this.faction === 'orc') deathSoundName = 'death_orc';
+        else deathSoundName = 'death_human'; // Fallback
+
+        let deathVolumeScale = 1.0; // Base for archers/kings
+        if (this.unitType === 'vassal') {
+            if (this.level === 1) deathVolumeScale = 0.7;
+            else if (this.level === 2) deathVolumeScale = 1.0;
+            else if (this.level === 3) deathVolumeScale = 1.3;
+        } else if (this.unitType === 'king') {
+            deathVolumeScale = 1.3; // Kings are loud
+        }
+        if (deathSoundName) game.soundManager.playSound(deathSoundName, this.x, this.y, deathVolumeScale);
       }
       this.deathSoundPlayed = true;
       // Note: The existing game logic should handle setting 'this.dead = true' or removing the unit.
@@ -200,7 +219,28 @@ export class Unit extends Entity {
             this.currentTarget.hp -= 20;
           }
           this.attackDamageDealt = true;
-          if (game.soundManager) game.soundManager.playSound('attack_melee');
+          if (game.soundManager) {
+            let attackSoundName = 'attack_melee_l1'; // Default for safety
+            let levelVolumeScale = 0.7; // Default for L1
+
+            if (this.unitType === 'king') { // Kings are like L3
+                attackSoundName = 'attack_melee_l3';
+                levelVolumeScale = 1.3;
+            } else if (this.unitType === 'vassal') {
+                if (this.level === 1) {
+                    attackSoundName = 'attack_melee_l1';
+                    levelVolumeScale = 0.7;
+                } else if (this.level === 2) {
+                    attackSoundName = 'attack_melee_l2';
+                    levelVolumeScale = 1.0;
+                } else if (this.level === 3) {
+                    attackSoundName = 'attack_melee_l3';
+                    levelVolumeScale = 1.3;
+                }
+            }
+            game.soundManager.playSound(attackSoundName, this.x, this.y, levelVolumeScale);
+            if (game.notifyCombatEvent) game.notifyCombatEvent(); // Notify combat event on attack
+          }
           if (!this.slashEffect) {
             let unitCenterX = this.x + this.width / 2,
                 unitCenterY = this.y + this.height / 2;
@@ -264,8 +304,13 @@ export class Unit extends Entity {
         if (this.lastAttackTimer >= this.attackCooldown) {
           let projX = this.x + this.width / 2;
           let projY = this.y + this.height / 2;
-          game.projectiles.push(new Utils.ProjectileWrapper(projX, projY, target, 10));
-          if (game.soundManager) game.soundManager.playSound('attack_arrow');
+          const newProjectile = new Utils.ProjectileWrapper(projX, projY, target, 10);
+          game.projectiles.push(newProjectile);
+          if (game.grid) game.grid.addEntity(newProjectile); // Add to spatial grid
+          if (game.soundManager) {
+            game.soundManager.playSound('attack_arrow', this.x, this.y, 1.0);
+            if (game.notifyCombatEvent) game.notifyCombatEvent(); // Notify combat event on attack
+          }
           this.lastAttackTimer = 0;
         }
       } else {
@@ -359,7 +404,39 @@ export class Unit extends Entity {
               this.currentTarget.hp -= 20;
             }
             this.attackDamageDealt = true;
-            if (game.soundManager) game.soundManager.playSound('attack_melee');
+            if (game.soundManager) {
+                let attackSoundName = 'attack_melee_l1'; // Default for safety
+                let levelVolumeScale = 0.7; // Default for L1
+
+                if (this.unitType === 'king') { // Kings are like L3
+                    attackSoundName = 'attack_melee_l3';
+                    levelVolumeScale = 1.3;
+                } else if (this.unitType === 'vassal') { // Should not happen for player king, but good for AI king
+                    if (this.level === 1) { // Player king doesn't have .level, AI kings might if extended
+                        attackSoundName = 'attack_melee_l1';
+                        levelVolumeScale = 0.7;
+                    } else if (this.level === 2) {
+                        attackSoundName = 'attack_melee_l2';
+                        levelVolumeScale = 1.0;
+                    } else if (this.level === 3) {
+                        attackSoundName = 'attack_melee_l3';
+                        levelVolumeScale = 1.3;
+                    }
+                }
+                 game.soundManager.playSound(attackSoundName, this.x, this.y, levelVolumeScale);
+            }
+            if (game.soundManager) {
+                let attackSoundName = 'attack_melee_l1'; // Default for safety
+                let levelVolumeScale = 0.7; // Default for L1
+
+                // AI King is always effectively L3 for sound purposes
+                attackSoundName = 'attack_melee_l3';
+                levelVolumeScale = 1.3;
+                
+                game.soundManager.playSound(attackSoundName, this.x, this.y, levelVolumeScale);
+                 if (game.notifyCombatEvent) game.notifyCombatEvent(); // Notify combat event on attack
+                if (game.notifyCombatEvent) game.notifyCombatEvent(); // Notify combat event on attack
+            }
             if (!this.slashEffect) {
               let unitCenterX = this.x + this.width / 2;
               let unitCenterY = this.y + this.height / 2;
@@ -548,9 +625,32 @@ export class Unit extends Entity {
     if (this.isMoving) {
         this.bobbingPhase = (this.bobbingPhase || 0) + deltaTime * 0.01; // Adjust speed
         this.bobbingOffset = Math.sin(this.bobbingPhase) * 2; // Adjust amplitude
+
+        this.footstepTimer -= deltaTime;
+        if (this.footstepTimer <= 0) {
+            this.footstepTimer = this.footstepIntervalMin + Math.random() * (this.footstepIntervalMax - this.footstepIntervalMin);
+            
+            let footstepBaseVolume = 0.3; 
+            if (this.unitType === 'king') {
+                footstepBaseVolume = 0.4;
+            } else if (this.level === 1) { // Vassals and Archers have levels
+                footstepBaseVolume = 0.2;
+            }
+            // For Archers not L1, or Vassals L2/L3, it remains 0.3 or king's 0.4
+
+            if (game.soundManager) {
+                game.soundManager.playSound('footstep', this.x, this.y, footstepBaseVolume, false);
+            }
+        }
     } else {
         this.bobbingOffset = 0;
         this.bobbingPhase = 0; // Reset phase when not moving
+        // Optional: Reset footstep timer if desired, or let it be for next movement
+        // For now, timer only counts down when moving.
+    }
+
+    if (game.grid && !this.dead) { // Update unit's position in the grid if it's not dead
+        game.grid.updateEntity(this);
     }
   }
   

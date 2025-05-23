@@ -87,31 +87,60 @@ export function generateBuildingClusters(game) {
   }
 }
 
-export function resolveUnitCollisions(game) {
-  let survivors = [];
-  for (let unit of game.units) {
-    if (unit.hp <= 0) { spawnSoulFromUnit(unit, game); }
-    else survivors.push(unit);
-  }
-  game.units = survivors;
+export function resolveUnitCollisions(game) { // Handles unit death processing
+    for (let i = game.units.length - 1; i >= 0; i--) {
+        const unit = game.units[i];
+        if (unit.hp <= 0) {
+            spawnSoulFromUnit(unit, game); // This might add a soul to the grid if souls are gridded
+            if (game.grid) game.grid.removeEntity(unit);
+            game.units.splice(i, 1);
+        }
+    }
 }
 
 export function resolveUnitUnitCollisions(game) {
-  for (let i = 0; i < game.units.length; i++) {
-    for (let j = i + 1; j < game.units.length; j++) {
-      let a = game.units[i], b = game.units[j];
-      if (a.leader === b.leader) continue;
-      if (a.intersects(b)) {
-        let dx = (b.x + b.width/2) - (a.x + a.width/2);
-        let dy = (b.y + b.height/2) - (a.y + a.height/2);
+  if (!game.grid) return; // Guard clause if grid is not initialized
+
+  const checkedPairs = new Set(); // To ensure each pair (a,b) is checked only once
+
+  for (const unitA of game.units) {
+    const potentialColliders = game.grid.getPotentialColliders(unitA);
+    for (const unitB of potentialColliders) {
+      if (!(unitB instanceof Unit) || unitA === unitB) { // Ensure it's a unit and not the same unit
+        continue;
+      }
+
+      // Create a unique key for the pair, order independent
+      const pairKey = unitA.team < unitB.team ? `${unitA.team}-${unitB.team}` : `${unitB.team}-${unitA.team}`;
+      if (checkedPairs.has(pairKey)) {
+        continue;
+      }
+      checkedPairs.add(pairKey);
+
+      if (unitA.leader === unitB.leader) continue; // Same faction, no collision
+
+      if (unitA.intersects(unitB)) {
+        let dx = (unitB.x + unitB.width / 2) - (unitA.x + unitA.width / 2);
+        let dy = (unitB.y + unitB.height / 2) - (unitA.y + unitA.height / 2);
         let dist = Math.hypot(dx, dy);
-        if (dist === 0) { dx = 1; dy = 0; dist = 1; }
-        let overlap = (a.width/2 + b.width/2) - dist;
+
+        if (dist === 0) { // Prevent division by zero if units are perfectly overlapped
+          dx = (Math.random() - 0.5) * 0.1; // Minimal random push
+          dy = (Math.random() - 0.5) * 0.1;
+          dist = Math.hypot(dx, dy);
+        }
+
+        let overlap = (unitA.width / 2 + unitB.width / 2) - dist;
         if (overlap > 0) {
-          let pushX = (dx/dist) * overlap/2;
-          let pushY = (dy/dist) * overlap/2;
-          a.x -= pushX; a.y -= pushY;
-          b.x += pushX; b.y += pushY;
+          const pushX = (dx / dist) * overlap / 2;
+          const pushY = (dy / dist) * overlap / 2;
+          unitA.x -= pushX;
+          unitA.y -= pushY;
+          unitB.x += pushX;
+          unitB.y += pushY;
+          // After pushing, update their positions in the grid
+          game.grid.updateEntity(unitA);
+          game.grid.updateEntity(unitB);
         }
       }
     }
@@ -119,64 +148,95 @@ export function resolveUnitUnitCollisions(game) {
 }
 
 export function resolveUnitBuildingCollisions(game) {
-  game.units.forEach(unit => {
-    if (unit.unitType === "archer") return;
-    game.buildings.forEach(building => {
+  if (!game.grid) return;
+
+  for (const unit of game.units) {
+    if (unit.unitType === "archer") continue;
+
+    const potentialBuildings = game.grid.getPotentialColliders(unit)
+                                      .filter(e => e instanceof Building);
+    for (const building of potentialBuildings) {
       if (unit.intersects(building)) {
-        let dx = (unit.x + unit.width/2) - (building.x + building.width/2);
-        let dy = (unit.y + unit.height/2) - (building.y + building.height/2);
+        let dx = (unit.x + unit.width / 2) - (building.x + building.width / 2);
+        let dy = (unit.y + unit.height / 2) - (building.y + building.height / 2);
         let dist = Math.hypot(dx, dy);
-        if (dist === 0) { dx = 1; dy = 0; dist = 1; }
-        let overlap = (unit.width/2 + building.width/2) - dist;
+        if (dist === 0) { dx = 1; dy = 0; dist = 1; } 
+        let overlap = (unit.width / 2 + building.width / 2) - dist;
         if (overlap > 0) {
-          unit.x += (dx/dist) * overlap;
-          unit.y += (dy/dist) * overlap;
+          unit.x += (dx / dist) * overlap;
+          unit.y += (dy / dist) * overlap;
+          game.grid.updateEntity(unit); // Unit moved, update its grid position
         }
       }
-    });
-  });
+    }
+  }
 }
 
 export function resolveUnitObstacleCollisions(game) {
-  game.units.forEach(unit => {
-    game.obstacles.forEach(obs => {
+  if (!game.grid) return;
+
+  for (const unit of game.units) {
+    const potentialObstacles = game.grid.getPotentialColliders(unit)
+                                       .filter(e => e instanceof Obstacle || e instanceof Forest);
+    for (const obs of potentialObstacles) {
       if (unit.intersects(obs)) {
         let dx = (unit.x + unit.width/2) - (obs.x + obs.width/2);
         let dy = (unit.y + unit.height/2) - (obs.y + obs.height/2);
         let dist = Math.hypot(dx, dy);
         if (dist === 0) { dx = 1; dy = 0; dist = 1; }
-        let overlap = (unit.width/2 + Math.min(obs.width, obs.height)/2) - dist;
+        // Obstacles might have irregular shapes if Forest is complex, but grid helps narrow phase.
+        // Using Math.min for overlap calculation assumes rectangular overlap logic is sufficient after filtering.
+        let overlap = (unit.width/2 + Math.min(obs.width, obs.height)/2) - dist; 
         if (overlap > 0) {
           unit.x += (dx/dist) * overlap;
           unit.y += (dy/dist) * overlap;
+          game.grid.updateEntity(unit); // Unit moved, update its grid position
         }
       }
-    });
-  });
+    }
+  }
 }
 
 export function applySeparationForce(game, deltaTime) {
+  if (!game.grid) return; // Guard clause if grid is not initialized
+
   const desiredSeparation = 30;
   const separationStrength = 0.05;
-  for (let i = 0; i < game.units.length; i++) {
+
+  for (const unitA of game.units) {
     let forceX = 0, forceY = 0;
     let count = 0;
-    for (let j = 0; j < game.units.length; j++) {
-      if (i === j) continue;
-      let dx = game.units[i].x - game.units[j].x;
-      let dy = game.units[i].y - game.units[j].y;
+    
+    // Get nearby units from the spatial grid
+    const potentialSeparators = game.grid.getPotentialColliders(unitA);
+
+    for (const unitB of potentialSeparators) {
+      if (!(unitB instanceof Unit) || unitA === unitB) { // Ensure it's a unit and not the same unit
+        continue;
+      }
+
+      let dx = unitA.x - unitB.x;
+      let dy = unitA.y - unitB.y;
       let d = Math.hypot(dx, dy);
+
       if (d > 0 && d < desiredSeparation) {
         forceX += dx / d * (desiredSeparation - d);
         forceY += dy / d * (desiredSeparation - d);
         count++;
       }
     }
+
     if (count > 0) {
       forceX /= count;
       forceY /= count;
-      game.units[i].x += forceX * separationStrength;
-      game.units[i].y += forceY * separationStrength;
+      unitA.x += forceX * separationStrength;
+      unitA.y += forceY * separationStrength;
+      // It's important to update the grid if units move significantly due to separation.
+      // However, since separation is a small nudge, and units are updated at the end of their main update,
+      // we might defer this grid update to avoid redundant updates if many units are nudged.
+      // For now, let unit.update() handle the grid update.
+      // If this causes issues (e.g. units pushed out of their cells before their main update),
+      // then add: game.grid.updateEntity(unitA);
     }
   }
 }
@@ -225,57 +285,94 @@ export function determineVassalTarget(unit, game) {
     return { x: unit.leader.x, y: unit.leader.y, type: "follow", target: unit.leader };
   }
   let kingCenter = { x: unit.leader.x + unit.leader.width/2, y: unit.leader.y + unit.leader.height/2 };
-  const protectThreshold = 300;
-  let enemyNearKing = null, enemyDist = Infinity;
-  for (let other of game.units) {
-    if (other.team !== unit.leader.team && !other.dead) {
-      let otherCenterX = other.x + other.width/2;
-      let otherCenterY = other.y + other.height/2;
-      if (kingInside && Math.hypot(otherCenterX - game.safeZoneCurrent.centerX, otherCenterY - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
+  const protectThreshold = 300; // For enemies near the king
+  const detectionRange = 300;   // For general targeting by the unit
+
+  let enemyNearKing = null, enemyDistToKing = Infinity;
+  let bestEnemyForUnit = null, bestEnemyDistToUnit = Infinity;
+  let bestOrbForUnit = null, bestOrbDistToUnit = Infinity;
+  let bestBuildingForUnit = null, bestBuildingDistToUnit = Infinity;
+
+  // Define a search area around the unit for general targeting
+  const searchBoxX = unit.x - detectionRange;
+  const searchBoxY = unit.y - detectionRange;
+  const searchBoxWidth = detectionRange * 2;
+  const searchBoxHeight = detectionRange * 2;
+  
+  let nearbyEntities = [];
+  if (game.grid) {
+    nearbyEntities = game.grid.getEntitiesInBoundingBox(searchBoxX, searchBoxY, searchBoxWidth, searchBoxHeight);
+  } else { // Fallback to all entities if grid is not available (should not happen in normal flow)
+    nearbyEntities = [...game.units, ...game.souls, ...game.buildings];
+  }
+
+  // First priority: Attack enemies near the King (for all units, not just vassals)
+  // This loop might need to iterate all game.units if protectThreshold > detectionRange
+  // or if king is far from the current unit. For simplicity, we'll use a wider search for this.
+  // A more optimal way for "enemies near king" would be a query centered on the king.
+  // For now, let's iterate all units for this specific "protect king" check if king is the leader
+  if (unit.leader === game.playerKing || unit.leader.unitType === 'king') { // Check if this unit belongs to a king
+      const kingProtectSearchRadius = protectThreshold + unit.leader.width; // Search around the king
+      const kingSearchBox = { 
+          x: unit.leader.x - kingProtectSearchRadius, 
+          y: unit.leader.y - kingProtectSearchRadius, 
+          width: kingProtectSearchRadius * 2, 
+          height: kingProtectSearchRadius * 2
+      };
+      const entitiesNearKing = game.grid ? game.grid.getEntitiesInBoundingBox(kingSearchBox.x, kingSearchBox.y, kingSearchBox.width, kingSearchBox.height) : game.units;
+
+      for (const other of entitiesNearKing) {
+        if (other instanceof Unit && other.team !== unit.leader.team && !other.dead) {
+          let otherCenterX = other.x + other.width/2;
+          let otherCenterY = other.y + other.height/2;
+          if (kingInside && Math.hypot(otherCenterX - game.safeZoneCurrent.centerX, otherCenterY - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
+            continue;
+          let dx = otherCenterX - kingCenter.x;
+          let dy = otherCenterY - kingCenter.y;
+          let d = Math.hypot(dx, dy);
+          if (d < protectThreshold && d < enemyDistToKing) { enemyNearKing = other; enemyDistToKing = d; }
+        }
+      }
+      if (enemyNearKing) return { x: enemyNearKing.x, y: enemyNearKing.y, type: "attack", target: enemyNearKing };
+  }
+
+
+  // Second priority: Unit's own targeting based on nearbyEntities from its own detectionRange
+  for (const entity of nearbyEntities) {
+    if (entity instanceof Unit) {
+      if (entity.team !== unit.team && !entity.dead) {
+        let otherCenterX = entity.x + entity.width/2;
+        let otherCenterY = entity.y + entity.height/2;
+        if (kingInside && Math.hypot(otherCenterX - game.safeZoneCurrent.centerX, otherCenterY - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
+          continue;
+        let dx = entity.x - unit.x, dy = entity.y - unit.y;
+        let d = Math.hypot(dx, dy);
+        if (d < detectionRange && d < bestEnemyDistToUnit) { bestEnemyForUnit = entity; bestEnemyDistToUnit = d; }
+      }
+    } else if (entity instanceof Soul) {
+      if (kingInside && Math.hypot(entity.x - game.safeZoneCurrent.centerX, entity.y - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
         continue;
-      let dx = otherCenterX - kingCenter.x;
-      let dy = otherCenterY - kingCenter.y;
+      let dx = entity.x - unit.x, dy = entity.y - unit.y;
       let d = Math.hypot(dx, dy);
-      if (d < protectThreshold && d < enemyDist) { enemyNearKing = other; enemyDist = d; }
-    }
-  }
-  if (enemyNearKing) return { x: enemyNearKing.x, y: enemyNearKing.y, type: "attack", target: enemyNearKing };
-  const detectionRange = 300;
-  let bestEnemy = null, bestEnemyDist = Infinity;
-  for (let other of game.units) {
-    if (other.team !== unit.team && !other.dead) {
-      let otherCenterX = other.x + other.width/2;
-      let otherCenterY = other.y + other.height/2;
-      if (kingInside && Math.hypot(otherCenterX - game.safeZoneCurrent.centerX, otherCenterY - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
-        continue;
-      let dx = other.x - unit.x, dy = other.y - unit.y;
+      if (d < detectionRange && d < bestOrbDistToUnit) {
+        if (entity.soulType === "green") { bestOrbForUnit = entity; bestOrbDistToUnit = d; }
+        else if (entity.soulType === "blue" && unit.unitType === "vassal" && unit.level === 1) { bestOrbForUnit = entity; bestOrbDistToUnit = d; }
+        else if (entity.soulType === "purple" && unit.unitType === "vassal" && unit.level === 2) { bestOrbForUnit = entity; bestOrbDistToUnit = d; }
+      }
+    } else if (entity instanceof Building) {
+      if (kingInside && Math.hypot(entity.x + entity.width/2 - game.safeZoneCurrent.centerX, entity.y + entity.height/2 - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
+          continue;
+      let dx = entity.x - unit.x, dy = entity.y - unit.y;
       let d = Math.hypot(dx, dy);
-      if (d < detectionRange && d < bestEnemyDist) { bestEnemy = other; bestEnemyDist = d; }
+      if (d < detectionRange && d < bestBuildingDistToUnit) { bestBuildingForUnit = entity; bestBuildingDistToUnit = d; }
     }
   }
-  if (bestEnemy) return { x: bestEnemy.x, y: bestEnemy.y, type: "attack", target: bestEnemy };
-  let bestOrb = null, bestOrbDist = Infinity;
-  for (let soul of game.souls) {
-    if (kingInside && Math.hypot(soul.x - game.safeZoneCurrent.centerX, soul.y - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
-      continue;
-    let dx = soul.x - unit.x, dy = soul.y - unit.y;
-    let d = Math.hypot(dx, dy);
-    if (d < detectionRange && d < bestOrbDist) {
-      if (soul.soulType === "green") { bestOrb = soul; bestOrbDist = d; }
-      else if (soul.soulType === "blue" && unit.unitType === "vassal" && unit.level === 1) { bestOrb = soul; bestOrbDist = d; }
-      else if (soul.soulType === "purple" && unit.unitType === "vassal" && unit.level === 2) { bestOrb = soul; bestOrbDist = d; }
-    }
-  }
-  if (bestOrb) return { x: bestOrb.x, y: bestOrb.y, type: "orb", target: bestOrb };
-  let bestBuilding = null, bestBuildingDist = Infinity;
-  for (let b of game.buildings) {
-    if (kingInside && Math.hypot(b.x + b.width/2 - game.safeZoneCurrent.centerX, b.y + b.height/2 - game.safeZoneCurrent.centerY) > game.safeZoneCurrent.radius)
-        continue;
-    let dx = b.x - unit.x, dy = b.y - unit.y;
-    let d = Math.hypot(dx, dy);
-    if (d < detectionRange && d < bestBuildingDist) { bestBuilding = b; bestBuildingDist = d; }
-  }
-  if (bestBuilding) return { x: bestBuilding.x, y: bestBuilding.y, type: "attack", target: bestBuilding };
+
+  if (bestEnemyForUnit) return { x: bestEnemyForUnit.x, y: bestEnemyForUnit.y, type: "attack", target: bestEnemyForUnit };
+  if (bestOrbForUnit) return { x: bestOrbForUnit.x, y: bestOrbForUnit.y, type: "orb", target: bestOrbForUnit };
+  if (bestBuildingForUnit) return { x: bestBuildingForUnit.x, y: bestBuildingForUnit.y, type: "attack", target: bestBuildingForUnit };
+
+  // Default: Follow leader or formation point
   if (!unit.formationOffset) {
     unit.formationOffset = recalcFormationOffset(unit, game.units, unit.leader);
   }
@@ -305,19 +402,31 @@ export function applySafeZoneDamage(game, deltaTime) {
       unit.hp -= damage;
     }
   }
-  game.units = game.units.filter(u => { if (u.hp <= 0) { spawnSoulFromUnit(u, game); return false; } else return true; });
+  for (let i = game.units.length - 1; i >= 0; i--) {
+    const unit = game.units[i];
+    if (unit.hp <= 0) { // Already damaged by safe zone in loop above this filter
+        spawnSoulFromUnit(unit, game); // ensure this adds to grid
+        if (game.grid) game.grid.removeEntity(unit);
+        game.units.splice(i, 1);
+    }
+  }
 }
 
 export function spawnSoulFromUnit(unit, game) {
   if (unit.unitType === "vassal") {
-    if (Math.random() < 0.5) return;
+    if (Math.random() < 0.5) return; // Only 50% chance to spawn soul from vassal
   }
   let soulType;
   if (unit.unitType === "king") soulType = "purple";
   else if (unit.level === 1) soulType = "green";
   else if (unit.level === 2) soulType = "blue";
   else if (unit.level === 3) soulType = "purple";
-  game.souls.push(new Soul(unit.x, unit.y, soulType));
+  
+  const newSoul = new Soul(unit.x, unit.y, soulType);
+  game.souls.push(newSoul);
+  if (game.grid) { // Add the new soul to the grid
+    game.grid.addEntity(newSoul);
+  }
 }
 
 export function handlePowerUps(game, deltaTime) {
@@ -341,6 +450,9 @@ export function handlePowerUps(game, deltaTime) {
       if (color) { // Spawn effect if a color was determined (i.e., known power-up type)
         game.spawnVisualEffect(powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2, color, 15, 400, 3, 1.2);
       }
+      // PowerUps are not currently added to the grid, so removal is not strictly necessary here yet.
+      // If they were added (e.g., if they move or need proximity checks), this would be:
+      // if (game.grid) game.grid.removeEntity(powerUp);
       game.powerUps.splice(i, 1);
     }
   }
@@ -348,8 +460,9 @@ export function handlePowerUps(game, deltaTime) {
 
 export function handleSouls(game) {
   for (let i = game.souls.length - 1; i >= 0; i--) {
-    let soul = game.souls[i], collected = false;
-    let collectingUnit = null; // Keep track of the unit that collected the soul
+    let soul = game.souls[i];
+    let collected = false;
+    let collectingUnit = null; 
 
     for (let unit of game.units) {
       let unitCenterX = unit.x + unit.width / 2;
@@ -357,10 +470,12 @@ export function handleSouls(game) {
       let soulCenterX = soul.x + soul.width / 2;
       let soulCenterY = soul.y + soul.height / 2;
       if (Math.hypot(unitCenterX - soulCenterX, unitCenterY - soulCenterY) < 40) {
-        collectingUnit = unit; // Store the collecting unit
+        collectingUnit = unit; 
         if (soul.soulType === "green") {
-          game.units.push(spawnVassal(unit.leader));
-          if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) { // Check if player's unit
+          const newVassal = spawnVassal(unit.leader); // spawnVassal just creates a unit
+          game.units.push(newVassal);
+          if (game.grid) game.grid.addEntity(newVassal); // Add the new vassal to the grid
+          if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) { 
             game.spawnFloatingText("+1 Vassal", collectingUnit.x + collectingUnit.width/2, collectingUnit.y, {r:0, g:255, b:0}, 1500, 16, 0.5);
           }
           collected = true;
@@ -383,7 +498,7 @@ export function handleSouls(game) {
       }
     }
     if (collected) {
-      let effectColor; // Renamed to avoid conflict with text color
+      let effectColor; 
       if (soul.soulType === "green") {
         effectColor = {r:0, g:200, b:0};
       } else if (soul.soulType === "blue") {
@@ -391,10 +506,10 @@ export function handleSouls(game) {
       } else if (soul.soulType === "purple") {
         effectColor = {r:150, g:0, b:150};
       }
-      // Spawn effect at the soul's position, not the collecting unit's.
-      if (effectColor && game.spawnVisualEffect) { // Ensure color is defined and method exists
+      if (effectColor && game.spawnVisualEffect) { 
           game.spawnVisualEffect(soul.x + soul.width/2, soul.y + soul.height/2, effectColor, 10, 300, 2, 1);
       }
+      if (game.grid) game.grid.removeEntity(soul); // Remove collected soul from grid
       game.souls.splice(i, 1);
     }
   }
@@ -405,7 +520,10 @@ export function handleBuildings(game) {
     let building = game.buildings[i];
     if (building.hp <= 0) {
       let soulType = (building.buildingType === "barn") ? "green" : (building.buildingType === "house" ? "blue" : "purple");
-      game.souls.push(new Soul(building.x, building.y, soulType));
+      const newSoul = new Soul(building.x, building.y, soulType);
+      game.souls.push(newSoul);
+      if (game.grid) game.grid.addEntity(newSoul); // Add new soul to grid
+      if (game.grid) game.grid.removeEntity(building); // Remove destroyed building from grid
       game.buildings.splice(i, 1);
     }
   }

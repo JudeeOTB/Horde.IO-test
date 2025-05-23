@@ -4,6 +4,7 @@ export class Entity {
     this.y = y;
     this.width = width;
     this.height = height;
+    this._gridCells = new Set(); // For SpatialGrid
   }
   
   update(deltaTime) {}
