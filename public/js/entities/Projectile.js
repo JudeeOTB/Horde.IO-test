@@ -79,6 +79,7 @@ export class Projectile extends Entity {
             // Assuming 'arrow' is the primary projectile type that does this.
             // If there were other projectile types, one might add a 'type' property to Projectile.
             game.spawnVisualEffect(this.x + this.width/2, this.y + this.height/2 - this.z, {r:139, g:69, b:19}, 8, 200, 3, 0.3);
+            if (game.notifyCombatEvent) game.notifyCombatEvent();
             this.impactEffectSpawned = true; 
         }
         this.onGround = true;
@@ -96,6 +97,7 @@ export class Projectile extends Entity {
         this.expired = true;
         if (!this.impactEffectSpawned && game && game.spawnVisualEffect) {
             game.spawnVisualEffect(this.x + this.width/2, this.y + this.height/2 - this.z, {r:255, g:100, b:0}, 5, 150, 2, 0.5);
+            if (game.notifyCombatEvent) game.notifyCombatEvent();
             this.impactEffectSpawned = true;
         }
       }

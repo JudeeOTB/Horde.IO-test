@@ -35,6 +35,9 @@ export class Game {
     this.fpsTime = 0;
     this.activeVisualEffects = [];
     this.floatingTexts = [];
+    this.lastCombatEventTime = 0;
+    this.recentCombatEvents = 0;
+    this.combatEventDecayTimer = 0;
 
     // Kamera und View
     this.cameraX = 0;
@@ -76,7 +79,7 @@ export class Game {
 
     // Initialisiere Submodule
     this.inputHandler = new InputHandler(this);
-    this.soundManager = new SoundManager();
+    this.soundManager = new SoundManager(this); // Pass game instance
     this.renderer = new Renderer(this);
 
     // Fenster-Events (Resize, Orientationchange)
@@ -178,7 +181,7 @@ export class Game {
     const bgMusic = document.getElementById("bgMusic");
     const titleScreen = document.getElementById("titleScreen");
     titleScreen.addEventListener("click", () => {
-      if (this.soundManager) this.soundManager.playSound('ui_click');
+      if (this.soundManager) this.soundManager.playSound('ui_click', null, null, 1.0, true);
       bgMusic.play().catch(err => console.log(err));
       titleScreen.style.opacity = "0";
       setTimeout(() => {
@@ -191,7 +194,7 @@ export class Game {
 
     // Hauptmenü – Singleplayer
     document.getElementById("btn-singleplayer").addEventListener("click", () => {
-      if (this.soundManager) this.soundManager.playSound('ui_click');
+      if (this.soundManager) this.soundManager.playSound('ui_click', null, null, 1.0, true);
       this.isMultiplayerMode = false;
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
@@ -200,7 +203,7 @@ export class Game {
 
     // Hauptmenü – Multiplayer
     document.getElementById("btn-multiplayer").addEventListener("click", () => {
-      if (this.soundManager) this.soundManager.playSound('ui_click');
+      if (this.soundManager) this.soundManager.playSound('ui_click', null, null, 1.0, true);
       this.isMultiplayerMode = true;
       this.socket = io();
       // Registrierung der Socket-Events
@@ -251,7 +254,7 @@ export class Game {
 
     // Optionen-Menü
     document.getElementById("btn-options").addEventListener("click", () => {
-      if (this.soundManager) this.soundManager.playSound('ui_click');
+      if (this.soundManager) this.soundManager.playSound('ui_click', null, null, 1.0, true);
       document.getElementById("mainMenu").style.display = "none";
       document.getElementById("mainMenu").style.opacity = "0";
       document.getElementById("optionsMenu").style.display = "flex";
@@ -260,7 +263,7 @@ export class Game {
 
     // Zurück aus dem Optionen-Menü
     document.getElementById("btn-back").addEventListener("click", () => {
-      if (this.soundManager) this.soundManager.playSound('ui_click');
+      if (this.soundManager) this.soundManager.playSound('ui_click', null, null, 1.0, true);
       document.getElementById("optionsMenu").style.display = "none";
       document.getElementById("mainMenu").style.display = "flex";
       setTimeout(() => { 
@@ -270,7 +273,7 @@ export class Game {
     });
 
     document.getElementById("mainMenuButton").addEventListener("click", () => {
-      if (this.soundManager) this.soundManager.playSound('ui_click');
+      if (this.soundManager) this.soundManager.playSound('ui_click', null, null, 1.0, true);
       document.getElementById("gameOverMenu").style.display = "none";
       const mainMenu = document.getElementById("mainMenu");
       mainMenu.style.display = "flex";
@@ -282,7 +285,7 @@ export class Game {
     // sendet der Client "characterSelected" und dann "lobbyReady".
     document.querySelectorAll("#selectionMenu button").forEach(btn => {
       btn.addEventListener("click", () => {
-        if (this.soundManager) this.soundManager.playSound('ui_click');
+        if (this.soundManager) this.soundManager.playSound('ui_click', null, null, 1.0, true);
         const selected = btn.getAttribute("data-faction");
         document.getElementById("selectionMenu").style.display = "none";
         document.getElementById("gameUI").style.display = "none";
@@ -451,6 +454,35 @@ export class Game {
         textEffect.alpha = Math.max(0, textEffect.life / textEffect.maxLife);
       }
     }
+
+    // Decay Recent Combat Events
+    this.combatEventDecayTimer += deltaTime;
+    if (this.combatEventDecayTimer >= 1000) { // Every second
+        if (this.recentCombatEvents > 0) {
+            this.recentCombatEvents = Math.max(0, this.recentCombatEvents - 1); // Decay by 1 per second
+        }
+        this.combatEventDecayTimer = 0;
+    }
+
+    // Calculate Target War Volume
+    const maxEventsForMaxVolume = 10;
+    const maxUnitsForMaxVolume = 50;
+    let eventVolumeFactor = Math.min(1, this.recentCombatEvents / maxEventsForMaxVolume);
+    let unitVolumeFactor = Math.min(1, this.units.length / maxUnitsForMaxVolume);
+    let targetWarVolume = Math.min(1, (eventVolumeFactor + unitVolumeFactor) / 2) * 0.7; 
+
+    if (this.recentCombatEvents === 0 && this.units.length < 10) {
+        targetWarVolume = 0;
+    }
+    
+    if (this.soundManager) {
+        this.soundManager.setWarAmbienceVolume(targetWarVolume);
+    }
+  }
+
+  notifyCombatEvent() {
+    this.recentCombatEvents++;
+    this.lastCombatEventTime = this.gameTime;
   }
 
   spawnVisualEffect(x, y, color, count = 10, lifetime = 300, particleSize = 2, speed = 1) {
