@@ -26,9 +26,45 @@ export class Projectile extends Entity {
     this.onGround = false;
     this.groundHitTime = 0;
     this.rotation = Math.atan2(this.vy, this.vx);
+    this.trailParticles = [];
+    this.trailSpawnTimer = 0;
   }
   
   update(deltaTime) {
+    if (!this.onGround && !this.expired) {
+      this.trailSpawnTimer += deltaTime;
+      const spawnInterval = 50; // ms
+      if (this.trailSpawnTimer >= spawnInterval) {
+        const particle = {
+          x: this.x + this.width / 2, // Center of the projectile
+          y: this.y + this.height / 2,
+          z: this.z, // Current height of projectile
+          size: Math.random() * 2 + 1, // Random size, e.g., 1-3 pixels
+          alpha: 0.8, // Initial alpha
+          life: 200,  // Lifetime in ms
+          vx: (Math.random() - 0.5) * 0.5, // Slight random velocity X
+          vy: (Math.random() - 0.5) * 0.5  // Slight random velocity Y
+        };
+        this.trailParticles.push(particle);
+        this.trailSpawnTimer = 0;
+        if (this.trailParticles.length > 10) {
+          this.trailParticles.shift();
+        }
+      }
+    }
+
+    for (let i = this.trailParticles.length - 1; i >= 0; i--) {
+      const particle = this.trailParticles[i];
+      particle.life -= deltaTime;
+      particle.x += particle.vx * (deltaTime / 16);
+      particle.y += particle.vy * (deltaTime / 16);
+      if (particle.life <= 0) {
+        this.trailParticles.splice(i, 1);
+      } else {
+        particle.alpha = 0.8 * (particle.life / 200); // Fade out
+      }
+    }
+
     if (!this.onGround) {
       this.x += this.vx * deltaTime / 16;
       this.y += this.vy * deltaTime / 16;
@@ -60,6 +96,16 @@ export class Projectile extends Entity {
   }
   
   draw(ctx, cameraX, cameraY, assetsArrow) {
+    // Draw trail particles first
+    for (const particle of this.trailParticles) {
+      ctx.fillStyle = `rgba(200, 200, 150, ${particle.alpha})`; // Use template literal
+      // Adjust y for particle's z height, similar to projectile (positive z means higher)
+      let drawY = (particle.y - cameraY - particle.z); 
+      ctx.beginPath();
+      ctx.arc(particle.x - cameraX, drawY, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.save();
     let angle = Math.atan2(this.vy, this.vx);
     let pivotX = this.width;
