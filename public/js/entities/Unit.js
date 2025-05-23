@@ -304,7 +304,9 @@ export class Unit extends Entity {
         if (this.lastAttackTimer >= this.attackCooldown) {
           let projX = this.x + this.width / 2;
           let projY = this.y + this.height / 2;
-          game.projectiles.push(new Utils.ProjectileWrapper(projX, projY, target, 10));
+          const newProjectile = new Utils.ProjectileWrapper(projX, projY, target, 10);
+          game.projectiles.push(newProjectile);
+          if (game.grid) game.grid.addEntity(newProjectile); // Add to spatial grid
           if (game.soundManager) {
             game.soundManager.playSound('attack_arrow', this.x, this.y, 1.0);
             if (game.notifyCombatEvent) game.notifyCombatEvent(); // Notify combat event on attack
@@ -645,6 +647,10 @@ export class Unit extends Entity {
         this.bobbingPhase = 0; // Reset phase when not moving
         // Optional: Reset footstep timer if desired, or let it be for next movement
         // For now, timer only counts down when moving.
+    }
+
+    if (game.grid && !this.dead) { // Update unit's position in the grid if it's not dead
+        game.grid.updateEntity(this);
     }
   }
   

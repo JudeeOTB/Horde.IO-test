@@ -107,6 +107,10 @@ export class Projectile extends Entity {
         this.expired = true;
       }
     }
+
+    if (game.grid && !this.onGround && !this.expired) {
+        game.grid.updateEntity(this);
+    }
   }
   
   draw(ctx, cameraX, cameraY, assetsArrow) {

@@ -5,6 +5,7 @@ import { Renderer } from "./Renderer.js";
 import { InputHandler } from "./InputHandler.js";
 import { SoundManager } from "./SoundManager.js";
 import { AssetManager } from "./AssetManager.js";
+import { SpatialGrid } from './SpatialGrid.js'; // Import SpatialGrid
 
 export class Game {
 
@@ -38,6 +39,7 @@ export class Game {
     this.lastCombatEventTime = 0;
     this.recentCombatEvents = 0;
     this.combatEventDecayTimer = 0;
+    this.grid = new SpatialGrid(CONFIG.worldWidth, CONFIG.worldHeight, 150); // Initialize SpatialGrid
 
     // Kamera und View
     this.cameraX = 0;
@@ -367,7 +369,19 @@ export class Game {
     }
     // Beide Modi: Erzeuge statische Weltobjekte (Buildings, Obstacles) – idealerweise basierend auf einem gemeinsamen Seed.
     Utils.generateObstacles(this);
+    if (this.grid) {
+        this.obstacles.forEach(o => this.grid.addEntity(o));
+    }
+    
     Utils.generateBuildingClusters(this);
+    if (this.grid) {
+        this.buildings.forEach(b => this.grid.addEntity(b));
+    }
+
+    // Add initial units to the grid (playerKing, AI kings, and their initial vassals)
+    if (this.grid) {
+        this.units.forEach(u => this.grid.addEntity(u));
+    }
   }
 
   update(deltaTime) {
@@ -397,12 +411,25 @@ export class Game {
     }
 
     if (this.isMultiplayerMode) {
-      this.updateRemotePlayers();
+      this.updateRemotePlayers(); // Note: Remote players are added to this.units, ensure they are added to grid too
+                                 // This logic might need adjustment if remote players are not immediately in this.units
+                                 // or if they are added/removed frequently without grid updates.
+                                 // For now, assuming they are handled like other units once in this.units.
     }
 
-    this.units.forEach(unit => unit.update(deltaTime, this));
-    this.projectiles.forEach(proj => proj.update(deltaTime, this)); // Pass game instance
-    this.projectiles = this.projectiles.filter(proj => !proj.expired);
+    this.units.forEach(unit => unit.update(deltaTime, this)); // unit.update should call grid.updateEntity(this)
+    
+    this.projectiles.forEach(proj => proj.update(deltaTime, this)); // proj.update should call grid.updateEntity(this)
+    
+    // Remove expired projectiles and from grid
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+        if (this.projectiles[i].expired) {
+            if (this.grid) {
+                this.grid.removeEntity(this.projectiles[i]);
+            }
+            this.projectiles.splice(i, 1);
+        }
+    }
 
     Utils.resolveUnitUnitCollisions(this);
     Utils.resolveUnitBuildingCollisions(this);
