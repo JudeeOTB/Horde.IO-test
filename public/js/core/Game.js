@@ -34,6 +34,7 @@ export class Game {
     this.fpsCount = 0;
     this.fpsTime = 0;
     this.activeVisualEffects = [];
+    this.floatingTexts = [];
 
     // Kamera und View
     this.cameraX = 0;
@@ -397,7 +398,7 @@ export class Game {
     }
 
     this.units.forEach(unit => unit.update(deltaTime, this));
-    this.projectiles.forEach(proj => proj.update(deltaTime));
+    this.projectiles.forEach(proj => proj.update(deltaTime, this)); // Pass game instance
     this.projectiles = this.projectiles.filter(proj => !proj.expired);
 
     Utils.resolveUnitUnitCollisions(this);
@@ -438,6 +439,18 @@ export class Game {
         particle.alpha = Math.max(0, particle.life / particle.maxLife);
       }
     }
+
+    // Update floating texts
+    for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+      const textEffect = this.floatingTexts[i];
+      textEffect.life -= deltaTime;
+      if (textEffect.life <= 0) {
+        this.floatingTexts.splice(i, 1);
+      } else {
+        textEffect.currentY -= textEffect.riseSpeed * (deltaTime / 16);
+        textEffect.alpha = Math.max(0, textEffect.life / textEffect.maxLife);
+      }
+    }
   }
 
   spawnVisualEffect(x, y, color, count = 10, lifetime = 300, particleSize = 2, speed = 1) {
@@ -456,6 +469,21 @@ export class Game {
         alpha: 1.0
       });
     }
+  }
+
+  spawnFloatingText(text, x, y, color = {r:255, g:255, b:255}, duration = 1500, size = 16, riseSpeed = 0.5) {
+    this.floatingTexts.push({
+      text: text,
+      x: x,
+      y: y,
+      currentY: y,
+      color: color,
+      life: duration,
+      maxLife: duration,
+      alpha: 1.0,
+      size: size,
+      riseSpeed: riseSpeed
+    });
   }
 
   updateTime(deltaTime) {

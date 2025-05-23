@@ -28,6 +28,8 @@ export class Unit extends Entity {
       this.attackTimer = 0;
       this.attackDamageDealt = false;
       this.currentTarget = null;
+      this.dashReadyFlashTimer = 0; 
+      this.shieldReadyFlashTimer = 0;
     } else if (unitType === "archer") {
       this.team = leader.team;
       this.hp = 100;
@@ -306,13 +308,26 @@ export class Unit extends Entity {
           this.x += moveX * this.speed * (deltaTime / 16);
           this.y += moveY * this.speed * (deltaTime / 16);
         }
+        const prevDashTimer = this.dashTimer;
         this.dashTimer += deltaTime;
+        if (this.dashTimer >= Utils.CONFIG.dashCooldown && prevDashTimer < Utils.CONFIG.dashCooldown) {
+            this.dashReadyFlashTimer = 250; //ms
+        }
+        if (this.dashReadyFlashTimer > 0) this.dashReadyFlashTimer -= deltaTime;
+
         if (game.inputHandler.keys[" "] && this.dashTimer >= Utils.CONFIG.dashCooldown && (this.lastDirection.x || this.lastDirection.y)) {
           this.x += this.lastDirection.x * Utils.CONFIG.dashDistance;
           this.y += this.lastDirection.y * Utils.CONFIG.dashDistance;
           this.dashTimer = 0;
         }
+        
+        const prevShieldCooldownTimer = this.shieldCooldownTimer;
         this.shieldCooldownTimer += deltaTime;
+        if (this.shieldCooldownTimer >= Utils.CONFIG.shieldAbilityCooldown && prevShieldCooldownTimer < Utils.CONFIG.shieldAbilityCooldown) {
+            this.shieldReadyFlashTimer = 250; //ms
+        }
+        if (this.shieldReadyFlashTimer > 0) this.shieldReadyFlashTimer -= deltaTime;
+
         if (game.inputHandler.keys["q"] && this.shieldCooldownTimer >= Utils.CONFIG.shieldAbilityCooldown && !this.isShieldActive) {
           this.isShieldActive = true;
           this.shieldTimer = Utils.CONFIG.shieldAbilityDuration;

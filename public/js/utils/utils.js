@@ -360,31 +360,40 @@ export function handleSouls(game) {
         collectingUnit = unit; // Store the collecting unit
         if (soul.soulType === "green") {
           game.units.push(spawnVassal(unit.leader));
+          if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) { // Check if player's unit
+            game.spawnFloatingText("+1 Vassal", collectingUnit.x + collectingUnit.width/2, collectingUnit.y, {r:0, g:255, b:0}, 1500, 16, 0.5);
+          }
           collected = true;
           break;
         } else if (soul.soulType === "blue" && unit.unitType === "vassal" && unit.level === 1) {
           unit.level = 2;
+           if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) {
+            game.spawnFloatingText("Level Up!", collectingUnit.x + collectingUnit.width/2, collectingUnit.y, {r:255, g:215, b:0}, 1500, 18, 0.7);
+          }
           collected = true;
           break;
         } else if (soul.soulType === "purple" && unit.unitType === "vassal" && unit.level === 2) {
           unit.level = 3;
+          if (game.spawnFloatingText && collectingUnit.team === game.playerKing?.team) {
+            game.spawnFloatingText("Level Up!", collectingUnit.x + collectingUnit.width/2, collectingUnit.y, {r:255, g:215, b:0}, 1500, 18, 0.7);
+          }
           collected = true;
           break;
         }
       }
     }
     if (collected) {
-      let color;
+      let effectColor; // Renamed to avoid conflict with text color
       if (soul.soulType === "green") {
-        color = {r:0, g:200, b:0};
+        effectColor = {r:0, g:200, b:0};
       } else if (soul.soulType === "blue") {
-        color = {r:0, g:100, b:255};
+        effectColor = {r:0, g:100, b:255};
       } else if (soul.soulType === "purple") {
-        color = {r:150, g:0, b:150};
+        effectColor = {r:150, g:0, b:150};
       }
       // Spawn effect at the soul's position, not the collecting unit's.
-      if (color) { // Ensure color is defined
-          game.spawnVisualEffect(soul.x + soul.width/2, soul.y + soul.height/2, color, 10, 300, 2, 1);
+      if (effectColor && game.spawnVisualEffect) { // Ensure color is defined and method exists
+          game.spawnVisualEffect(soul.x + soul.width/2, soul.y + soul.height/2, effectColor, 10, 300, 2, 1);
       }
       game.souls.splice(i, 1);
     }
