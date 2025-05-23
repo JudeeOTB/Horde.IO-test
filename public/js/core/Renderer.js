@@ -300,6 +300,7 @@ export class Renderer {
     ctx.fillRect(10, 10, 160, 40);
     ctx.font = "24px 'Cinzel', serif";
     ctx.fillStyle = "white";
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Könige: " + kingsAlive, 20, 40);
     
     // Dash-Cooldown-Balken
@@ -358,13 +359,18 @@ export class Renderer {
     ctx.fillRect(10, 120, 220, 160);
     ctx.font = "16px 'Cinzel', serif";
     ctx.fillStyle = "white";
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Vassalen:", 20, 140);
     ctx.drawImage(game.assets.factions[game.playerFaction].level1, 20, 150, 24, 24);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Level 1: " + v1, 50, 168);
     ctx.drawImage(game.assets.factions[game.playerFaction].level2, 20, 180, 24, 24);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Level 2: " + v2, 50, 198);
     ctx.drawImage(game.assets.factions[game.playerFaction].level3, 20, 210, 24, 24);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Level 3: " + v3, 50, 228);
+    ctx.textAlign = "left"; // Ensure left alignment
     ctx.fillText("Bogenschützen: " + archers.length, 20, 258);
     
     // FPS-Anzeige (unten links)
