@@ -48,6 +48,14 @@ export class Renderer {
       // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
       this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
 
+      // Draw active visual effects
+      game.activeVisualEffects.forEach(particle => {
+        ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.alpha})`;
+        ctx.beginPath();
+        ctx.arc(particle.x - game.cameraX, particle.y - game.cameraY, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
       ctx.restore();
       this.drawMinimap();
     } else {
@@ -81,6 +89,14 @@ export class Renderer {
       this.drawSafeZone();
       // Zeichne zuletzt die Gesundheitsbalken der Könige (im Vordergrund)
       this.drawKingHealthBars(game, ctx, game.cameraX, game.cameraY);
+      
+      // Draw active visual effects (Desktop)
+      game.activeVisualEffects.forEach(particle => {
+        ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${particle.alpha})`;
+        ctx.beginPath();
+        ctx.arc(particle.x - game.cameraX, particle.y - game.cameraY, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
       this.drawMinimap();
     }
