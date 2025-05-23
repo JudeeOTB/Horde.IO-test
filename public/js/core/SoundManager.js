@@ -11,14 +11,16 @@ export class SoundManager {
 
     this.sfxCache = {};
     this.sfxVolume = 0.5; // Default SFX volume set to 50%
-    this.initSfxVolumeSlider();
-    this.preloadSounds();
-
+    
+    // Initialize warAmbienceAudio before initSfxVolumeSlider
     this.warAmbienceAudio = new Audio();
     this.warAmbienceAudio.loop = true;
     this.warAmbienceAudio.src = 'assets/audiosfx/Medieval Fight Ambient Dynamic Sound/MedievalFightAmbientLoop.mp3';
     this.warAmbienceAudio.load();
     this.currentWarAmbienceVolume = 0; // Stores the target volume before master SFX scaling
+    
+    this.initSfxVolumeSlider();
+    this.preloadSounds();
   }
 
   initMusicVolumeSlider() {
@@ -50,6 +52,11 @@ export class SoundManager {
   }
 
   setWarAmbienceVolume(targetVolume) {
+    if (!this.warAmbienceAudio || typeof this.warAmbienceAudio.volume === 'undefined') { 
+        console.warn("War ambience audio not ready or 'volume' property is undefined, cannot set volume."); 
+        return; 
+    }
+
     targetVolume = Math.max(0, Math.min(1, targetVolume)); // Clamp targetVolume
     this.currentWarAmbienceVolume = targetVolume; // Store the target for sfxVolume changes
 
