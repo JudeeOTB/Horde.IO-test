@@ -74,8 +74,10 @@
   </div>
   <!-- Vollbild-Button -->
   <button id="fullscreenButton">Vollbild</button>
+  <!-- Phaser Game Container -->
+  <div id="phaser-game"></div>
   <!-- Canvas -->
-  <canvas id="gameCanvas"></canvas>
+  <!-- <canvas id="gameCanvas"></canvas> -->
   <!-- Joystick & Aktions-Buttons (für mobile Steuerung) -->
   <div id="joystickContainer">
     <div id="joystickKnob"></div>
@@ -89,7 +91,19 @@
     <source src="assets/music/Theme Music.mp3" type="audio/mp3">
     Dein Browser unterstützt dieses Audioformat nicht.
   </audio>
-  <!-- Haupt-Clientcode als ES-Modul -->
+  <!-- Phaser Library -->
+  <script src="js/lib/phaser.min.js"></script>
+  <!-- Phaser Unit Entity -->
+  <script src="js/phaser/entities/Unit.js"></script>
+  <!-- Other Phaser Entities -->
+  <script src="js/phaser/entities/Building.js"></script>
+  <script src="js/phaser/entities/Obstacle.js"></script>
+  <script src="js/phaser/entities/Projectile.js"></script>
+  <script src="js/phaser/entities/Soul.js"></script>
+  <!-- Phaser Main Game Script -->
+  <script src="js/phaser-main.js"></script>
+  <!-- Haupt-Clientcode als ES-Modul (InputHandler was likely part of Game.js, which is commented out) -->
+  <!-- <script type="module" src="js/core/InputHandler.js"></script> -->
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
