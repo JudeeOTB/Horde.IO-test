@@ -85,6 +85,8 @@
   <div id="actionButtons">
     <button id="btn-dash">Dash</button>
     <button id="btn-shield">Shield</button>
+    <button id="btn-attack">Attack</button> 
+    <button id="btn-ranged-attack">Shoot</button> <!-- New Ranged Attack Button -->
   </div>
   <!-- Hintergrundmusik (wird unsichtbar geladen) -->
   <audio id="bgMusic" loop autoplay style="display:none;">
@@ -100,6 +102,14 @@
   <script src="js/phaser/entities/Obstacle.js"></script>
   <script src="js/phaser/entities/Projectile.js"></script>
   <script src="js/phaser/entities/Soul.js"></script>
+
+  <!-- New Scene Files -->
+  <script src="js/phaser/scenes/BootScene.js"></script>
+  <script src="js/phaser/scenes/MainMenuScene.js"></script>
+  <script src="js/phaser/scenes/GameScene.js"></script>
+  <!-- Add UIScene -->
+  <script src="js/phaser/scenes/UIScene.js"></script>
+
   <!-- Phaser Main Game Script -->
   <script src="js/phaser-main.js"></script>
   <!-- Haupt-Clientcode als ES-Modul (InputHandler was likely part of Game.js, which is commented out) -->
