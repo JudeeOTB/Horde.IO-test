@@ -38,7 +38,7 @@ export class MainMenuScene extends Phaser.Scene {
 
         // Weitere Assets
         this.load.image('arrow', 'assets/sprites/ATTACKS/Arrow.png');
-        this.load.image('ground_texture_for_tilesprite', 'https://opengameart.org/sites/default/files/grass_0.png');
+        this.load.image('ground_texture_for_tilesprite', 'assets/images/grass_0.png');
         this.load.image('slash', 'assets/sprites/ATTACKS/slash.png');
         this.load.image('forest', 'assets/sprites/Trees/angepasst/Forest dark.PNG');
     }
