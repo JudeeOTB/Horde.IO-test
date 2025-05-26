@@ -85,23 +85,28 @@
   <div id="actionButtons">
     <button id="btn-dash">Dash</button>
     <button id="btn-shield">Shield</button>
+    <button id="btn-attack">Attack</button> 
+    <button id="btn-ranged-attack">Shoot</button> <!-- New Ranged Attack Button -->
   </div>
-  <!-- Hintergrundmusik (wird unsichtbar geladen) -->
-  <audio id="bgMusic" loop autoplay style="display:none;">
-    <source src="assets/music/Theme Music.mp3" type="audio/mp3">
-    Dein Browser unterstützt dieses Audioformat nicht.
-  </audio>
   <!-- Phaser Library -->
   <script src="js/lib/phaser.min.js"></script>
   <!-- Phaser Unit Entity -->
-  <script src="js/phaser/entities/Unit.js"></script>
+  <script type="module" src="js/phaser/entities/Unit.js"></script>
   <!-- Other Phaser Entities -->
-  <script src="js/phaser/entities/Building.js"></script>
-  <script src="js/phaser/entities/Obstacle.js"></script>
-  <script src="js/phaser/entities/Projectile.js"></script>
-  <script src="js/phaser/entities/Soul.js"></script>
+  <script type="module" src="js/phaser/entities/Building.js"></script>
+  <script type="module" src="js/phaser/entities/Obstacle.js"></script>
+  <script type="module" src="js/phaser/entities/Projectile.js"></script>
+  <script type="module" src="js/phaser/entities/Soul.js"></script>
+
+  <!-- New Scene Files -->
+  <script type="module" src="js/phaser/scenes/BootScene.js"></script>
+  <script type="module" src="js/phaser/scenes/MainMenuScene.js"></script>
+  <script type="module" src="js/phaser/scenes/GameScene.js"></script>
+  <!-- Add UIScene -->
+  <script type="module" src="js/phaser/scenes/UIScene.js"></script>
+
   <!-- Phaser Main Game Script -->
-  <script src="js/phaser-main.js"></script>
+  <script type="module" src="js/phaser-main.js"></script>
   <!-- Haupt-Clientcode als ES-Modul (InputHandler was likely part of Game.js, which is commented out) -->
   <!-- <script type="module" src="js/core/InputHandler.js"></script> -->
   <script type="module" src="js/main.js"></script>
