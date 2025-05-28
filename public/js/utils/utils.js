@@ -4,10 +4,10 @@ import { Obstacle } from "../entities/Obstacle.js";
 import { Soul } from "../entities/Soul.js";
 import { Unit } from "../entities/Unit.js";
 import { Projectile } from "../entities/Projectile.js";
-import { CONFIG } from "../core/config.js";
+// Removed: import { CONFIG } from "../core/config.js";
 import { Forest } from "../entities/Forest.js"; // Neuer Import
 
-export { CONFIG };
+// Removed: export { CONFIG };
 
 // Vassal spawnen (gibt den neuen Vassal zurück)
 export function spawnVassal(leader) {
@@ -19,7 +19,7 @@ export function spawnVassal(leader) {
 }
 
 // Angepasste Hindernis-Erzeugung: Bei "forest" wird eine Forest-Instanz erstellt.
-export function generateObstacles(game) {
+export function generateObstacles(game, worldWidth, worldHeight) { // Added worldWidth, worldHeight parameters
   game.obstacles = [];
   const numObstacles = 20;
   for (let i = 0; i < numObstacles; i++) {
@@ -27,8 +27,8 @@ export function generateObstacles(game) {
     let type = (rand < 0.7) ? "forest" : "water";
     let w = 200 + Math.random() * 600;
     let h = 200 + Math.random() * 600;
-    let x = Math.random() * (CONFIG.worldWidth - w);
-    let y = Math.random() * (CONFIG.worldHeight - h);
+    let x = Math.random() * (worldWidth - w); // Use parameter
+    let y = Math.random() * (worldHeight - h); // Use parameter
     
     if (type === "forest") {
       // Nutze die neue Forest-Klasse für Wälder
@@ -49,12 +49,12 @@ export function isAreaClear(x, y, width, height, obstacles) {
   return true;
 }
 
-export function generateBuildingClusters(game) {
+export function generateBuildingClusters(game, worldWidth, worldHeight) { // Added worldWidth, worldHeight parameters
   game.buildings = [];
   const numClusters = 80;
   for (let i = 0; i < numClusters; i++) {
-    let centerX = Math.random() * (CONFIG.worldWidth - 800) + 400;
-    let centerY = Math.random() * (CONFIG.worldHeight - 800) + 400;
+    let centerX = Math.random() * (worldWidth - 800) + 400; // Use parameter
+    let centerY = Math.random() * (worldHeight - 800) + 400; // Use parameter
     if (!isAreaClear(centerX - 50, centerY - 50, 100, 100, game.obstacles)) continue;
     let numBuildings = Math.floor(Math.random() * 11) + 10;
     let clusterBuildings = [];

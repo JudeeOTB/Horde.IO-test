@@ -49,32 +49,21 @@ export class MainMenuScene extends Phaser.Scene {
     create() {
         console.log('MainMenuScene: create');
         
-        if (window.HtmlMenuManager) {
-            window.HtmlMenuManager.showMainMenu();
-        }
+        // Removed: if (window.HtmlMenuManager) {
+        // Removed:     window.HtmlMenuManager.showMainMenu();
+        // Removed: }
 
         if (this.textures.exists('title_screen_bg')) {
+            // Optional: Keep background if it's meant to persist briefly or be part of the new scene
+            // For a clean transition, this might also be removed or handled by NewMainMenuScene
             this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, 'title_screen_bg').setAlpha(0.5); 
         } else {
             console.warn("Title screen BG ('title_screen_bg') not found in MainMenuScene create. Was it loaded in BootScene?");
         }
         
-        this.startGame = (faction = 'human') => { 
-            console.log(`MainMenuScene: startGame called with faction: ${faction}`);
-            if (window.HtmlMenuManager) {
-                window.HtmlMenuManager.hideAllMenus(); 
-            }
-            
-            const joystickContainer = document.getElementById('joystickContainer');
-            if (joystickContainer) joystickContainer.style.display = 'block'; 
+        console.log('MainMenuScene: All assets loaded. Transitioning to NewMainMenuScene.');
+        this.scene.start('NewMainMenuScene');
 
-            const actionButtons = document.getElementById('actionButtons');
-            if (actionButtons) actionButtons.style.display = 'block'; 
-            
-            const gameUI = document.getElementById('gameUI');
-            if (gameUI) gameUI.style.display = 'block';
-
-            this.scene.start('GameScene', { selectedFaction: faction }); 
-        };
+        // Removed: this.startGame = (faction = 'human') => { ... };
     }
 }

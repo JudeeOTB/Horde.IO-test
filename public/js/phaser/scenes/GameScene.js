@@ -34,6 +34,23 @@ export class GameScene extends Phaser.Scene {
         this.dashButtonPressed = false; this.shieldButtonPressed = false;
         
         this.playerUnits = null; // Group for player's spawned units
+
+        // Safe Zone State Variables (Re-adding from Turn 15 logic)
+        this.safeZoneState = "delay"; 
+        this.safeZoneTimer = 0;
+        
+        const initialRadius = (this.CONFIG.worldWidth / 2) * 0.8; 
+        
+        this.safeZoneCurrent = { 
+            centerX: this.CONFIG.worldWidth / 2, 
+            centerY: this.CONFIG.worldHeight / 2, 
+            radius: initialRadius 
+        };
+        this.safeZoneTarget = { 
+            centerX: this.CONFIG.worldWidth / 2, 
+            centerY: this.CONFIG.worldHeight / 2, 
+            radius: initialRadius 
+        };
     }
 
     init(data) {
@@ -55,6 +72,14 @@ export class GameScene extends Phaser.Scene {
         upgradePlayerDamageAmount: 5,
         upgradePlayerMaxHpCost: 50,
         upgradePlayerMaxHpAmount: 25,
+        // Safe Zone Configs (Re-adding from Turn 15 logic)
+        safeZoneDelay: 120000,
+        safeZonePauseDuration: 30000,
+        safeZoneMovePauseDuration: 15000,
+        safeZoneShrinkRate: 0.05,
+        safeZoneMoveRate: 0.05,
+        safeZoneMinRadius: 250,
+        safeZoneDps: 10, 
     };
 
     preload() { 
@@ -195,6 +220,9 @@ export class GameScene extends Phaser.Scene {
             this.events.emit('playerHealthChanged', this.playerKing.hp); 
             this.events.emit('playerSoulsChanged', this.playerKing.soulsCollected); 
         }
+        // Emit initial safe zone state for UIScene
+        this.events.emit('safeZoneUpdated', this.safeZoneCurrent, this.safeZoneState);
+        
         this.events.on('playerDied', this.handlePlayerDeath, this);
     }
 
@@ -237,7 +265,7 @@ export class GameScene extends Phaser.Scene {
 
     handlePlayerDeath() { 
         this.gameOver = true; 
-        if (window.HtmlMenuManager) { window.HtmlMenuManager.showGameOverMenu(); }
+        // Removed: if (window.HtmlMenuManager) { window.HtmlMenuManager.showGameOverMenu(); }
         const joystickContainer = document.getElementById('joystickContainer');
         if (joystickContainer) joystickContainer.style.display = 'none';
         const actionButtons = document.getElementById('actionButtons');
@@ -424,5 +452,121 @@ export class GameScene extends Phaser.Scene {
                 // this.events.emit('showTemporaryMessage', 'Not Enough Souls!');
             }
         }
+        
+        // Update Safe Zone (Re-adding from Turn 15 logic)
+        this.updateSafeZone(delta);
+        // Apply Safe Zone Damage (Re-adding from Turn 15 logic)
+        this.applySafeZoneDamage(delta);
+    }
+
+    // Re-adding applySafeZoneDamage method from Turn 15
+    applySafeZoneDamage(delta) {
+        if (!this.safeZoneCurrent || this.safeZoneState === "delay") {
+            return;
+        }
+        const unitsToDamage = [];
+        if (this.playerKing && this.playerKing.active) {
+            unitsToDamage.push(this.playerKing);
+        }
+        this.playerUnits.getChildren().forEach(unit => {
+            if (unit.active) unitsToDamage.push(unit);
+        });
+        this.enemies.getChildren().forEach(unit => {
+            if (unit.active) unitsToDamage.push(unit);
+        });
+
+        unitsToDamage.forEach(unit => {
+            if (!unit.active) return;
+            const distance = Phaser.Math.Distance.Between(
+                unit.x, unit.y,
+                this.safeZoneCurrent.centerX, this.safeZoneCurrent.centerY
+            );
+            if (distance > this.safeZoneCurrent.radius) {
+                let damageAmount = this.CONFIG.safeZoneDps * (delta / 1000);
+                if (unit === this.playerKing && this.playerKing.isShieldActive) {
+                    damageAmount *= 0.5;
+                }
+                unit.takeDamage(damageAmount);
+            }
+        });
+    }
+
+    // Re-adding updateSafeZone method from Turn 15
+    updateSafeZone(deltaTime) {
+        if (!this.CONFIG) {
+            console.error("GameScene: this.CONFIG not found in updateSafeZone.");
+            return;
+        }
+        if (this.safeZoneState === "delay") {
+            this.safeZoneTimer += deltaTime;
+            if (this.safeZoneTimer >= this.CONFIG.safeZoneDelay) {
+                this.safeZoneTarget.centerX = this.safeZoneCurrent.centerX + (Math.random() - 0.5) * this.safeZoneCurrent.radius * 0.5;
+                this.safeZoneTarget.centerY = this.safeZoneCurrent.centerY + (Math.random() - 0.5) * this.safeZoneCurrent.radius * 0.5;
+                this.safeZoneTarget.radius = Math.max(this.safeZoneCurrent.radius * 0.6, this.CONFIG.safeZoneMinRadius);
+                this.safeZoneState = "shrinking";
+                this.safeZoneTimer = 0;
+            }
+        } else if (this.safeZoneState === "shrinking") {
+            let shrinkAmount = this.CONFIG.safeZoneShrinkRate * deltaTime;
+            if (this.safeZoneCurrent.radius <= this.safeZoneTarget.radius) {
+                this.safeZoneCurrent.radius = this.safeZoneTarget.radius;
+                this.safeZoneCurrent.centerX = this.safeZoneTarget.centerX;
+                this.safeZoneCurrent.centerY = this.safeZoneTarget.centerY;
+                this.safeZoneState = "pause";
+                this.safeZoneTimer = 0;
+            } else {
+                const remainingRadiusToShrink = this.safeZoneCurrent.radius - this.safeZoneTarget.radius;
+                const actualShrinkAmount = Math.min(shrinkAmount, remainingRadiusToShrink);
+                this.safeZoneCurrent.radius -= actualShrinkAmount;
+                if (initialRadiusForThisPhase > this.safeZoneTarget.radius) { // initialRadiusForThisPhase needs to be defined in this scope or passed
+                    const fractionOfShrinkCompleted = actualShrinkAmount / remainingRadiusToShrink;
+                    if(this.safeZoneTarget.centerX !== this.safeZoneCurrent.centerX || this.safeZoneTarget.centerY !== this.safeZoneCurrent.centerY) {
+                        this.safeZoneCurrent.centerX += (this.safeZoneTarget.centerX - this.safeZoneCurrent.centerX) * fractionOfShrinkCompleted;
+                        this.safeZoneCurrent.centerY += (this.safeZoneTarget.centerY - this.safeZoneCurrent.centerY) * fractionOfShrinkCompleted;
+                    }
+                }
+                if (this.safeZoneCurrent.radius <= this.safeZoneTarget.radius) {
+                    this.safeZoneCurrent.radius = this.safeZoneTarget.radius;
+                    this.safeZoneCurrent.centerX = this.safeZoneTarget.centerX;
+                    this.safeZoneCurrent.centerY = this.safeZoneTarget.centerY;
+                    this.safeZoneState = "pause";
+                    this.safeZoneTimer = 0;
+                }
+            }
+        } else if (this.safeZoneState === "pause") {
+            this.safeZoneTimer += deltaTime;
+            let pauseDuration = (this.safeZoneCurrent.radius > this.CONFIG.safeZoneMinRadius) ? this.CONFIG.safeZonePauseDuration : this.CONFIG.safeZoneMovePauseDuration;
+            if (this.safeZoneTimer >= pauseDuration) {
+                if (this.safeZoneCurrent.radius > this.CONFIG.safeZoneMinRadius) {
+                    this.safeZoneState = "shrinking";
+                    this.safeZoneTarget.centerX = this.safeZoneCurrent.centerX + (Math.random() - 0.5) * this.safeZoneCurrent.radius * 0.5;
+                    this.safeZoneTarget.centerY = this.safeZoneCurrent.centerY + (Math.random() - 0.5) * this.safeZoneCurrent.radius * 0.5;
+                    this.safeZoneTarget.radius = Math.max(this.safeZoneCurrent.radius * 0.6, this.CONFIG.safeZoneMinRadius);
+                } else { 
+                    this.safeZoneState = "moving";
+                    this.safeZoneTarget.centerX = this.safeZoneCurrent.centerX + (Math.random() - 0.5) * this.safeZoneCurrent.radius * 1.5;
+                    this.safeZoneTarget.centerY = this.safeZoneCurrent.centerY + (Math.random() - 0.5) * this.safeZoneCurrent.radius * 1.5;
+                    this.safeZoneTarget.centerX = Math.max(this.CONFIG.safeZoneMinRadius, Math.min(this.safeZoneTarget.centerX, this.CONFIG.worldWidth - this.CONFIG.safeZoneMinRadius));
+                    this.safeZoneTarget.centerY = Math.max(this.CONFIG.safeZoneMinRadius, Math.min(this.safeZoneTarget.centerY, this.CONFIG.worldHeight - this.CONFIG.safeZoneMinRadius));
+                    this.safeZoneTarget.radius = this.safeZoneCurrent.radius;
+                }
+                this.safeZoneTimer = 0;
+            }
+        } else if (this.safeZoneState === "moving") {
+            let moveAmount = this.CONFIG.safeZoneMoveRate * deltaTime;
+            let dx = this.safeZoneTarget.centerX - this.safeZoneCurrent.centerX;
+            let dy = this.safeZoneTarget.centerY - this.safeZoneCurrent.centerY;
+            let dist = Math.hypot(dx, dy);
+            if (dist > moveAmount) {
+                this.safeZoneCurrent.centerX += (dx / dist) * moveAmount;
+                this.safeZoneCurrent.centerY += (dy / dist) * moveAmount;
+            } else {
+                this.safeZoneCurrent.centerX = this.safeZoneTarget.centerX;
+                this.safeZoneCurrent.centerY = this.safeZoneTarget.centerY;
+                this.safeZoneState = "pause"; 
+                this.safeZoneTimer = 0;
+            }
+        }
+        this.events.emit('safeZoneUpdated', this.safeZoneCurrent, this.safeZoneState);
     }
 }
